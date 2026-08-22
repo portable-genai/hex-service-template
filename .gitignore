@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+node_modules/
+.next/
+# never commit a rendered instance of the template
+/svc-example-agent/
+
+# Local editor and OS noise.
+.DS_Store
+
+# Local secrets and configuration. The .example files are the committed contract.
+.env
+.env.*
+!.env.example
+!.env.secrets.example

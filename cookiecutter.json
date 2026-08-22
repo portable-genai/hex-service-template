@@ -1,0 +1,29 @@
+{
+  "friendly_name": "Example Triage Agent",
+  "project_slug": "svc-example-agent",
+  "package_name": "example_agent",
+  "catalog_id": "Svc1",
+  "description": "A grounded, audited triage agent scaffolded at Doc1 parity from the catalog commons.",
+  "env_prefix": "EXAMPLE",
+  "region": "asia-southeast1",
+  "commons_version": "0.0.1",
+  "eval_kit_version": "0.0.1",
+  "pii_kit_version": "0.0.1",
+  "review_kit_version": "0.0.1",
+  "commons_commit": "ce309da122393af9a06dcebe94a6d661b52cb4d7",
+  "eval_kit_commit": "15ded51f1d6738a6e1f9a53693b9785aaca9a733",
+  "pii_kit_commit": "dbdc0628b9150d16ef41f90fae8bb6fb1c97f8fa",
+  "review_kit_commit": "6797fe44411aab50f1515d7c77ecfe9539658475",
+  "_copy_without_render": [
+    ".github/workflows/*",
+    "infra/terraform/*.tf",
+    "infra/terraform/*.tftest.hcl",
+    "ui/app/*",
+    "ui/lib/*",
+    "ui/tests/*",
+    "ui/*.json",
+    "ui/*.ts",
+    "ui/*.mjs",
+    "ui/.gitignore"
+  ]
+}
