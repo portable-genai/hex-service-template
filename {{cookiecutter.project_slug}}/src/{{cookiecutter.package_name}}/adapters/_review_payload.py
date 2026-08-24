@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import re
 
-from review_kit import Citation as KitCitation
-from review_kit import Review
 from pii_kit import NATIONAL_ID_PATTERNS, UNIVERSAL_PATTERNS, national_patterns_for
 from pii_kit import redact as pii_redact
+from review_kit import Citation as KitCitation
+from review_kit import Review
 
 from ..domain.kernel import Severity
 from ..domain.models import TriageResult
