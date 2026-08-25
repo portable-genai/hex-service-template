@@ -146,7 +146,9 @@ service-identity policy before the token, gates the zero-secret local opening on
 match, covers WebSocket scopes in the exposure guard, and exports `read_env_setting`, which
 resolves every environment read in three states, so a variable an operator deliberately emptied
 does not inherit the more permissive unset default. The rendered `config.resolve_profile` is built
-on it. Never render a new repo below it.
+on it. It also carries `hex_service_kit.federation`, which owns the IAP transport facts (which
+header carries an assertion, the issuer, the key set) that the rendered `adapters/gcp/identity.py`
+rebinds instead of re-declaring. Never render a new repo below it.
 
 `review_kit_version` is what makes rule R8 real rather than aspirational, so it is not optional
 either: without it a rendered repo would set `requires_human_review` and stop.
