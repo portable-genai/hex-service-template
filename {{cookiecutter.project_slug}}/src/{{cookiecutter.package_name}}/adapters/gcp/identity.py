@@ -45,7 +45,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from hex_service_kit.federation import IAP_ASSERTION_HEADER, IAP_ISSUER, IAP_KEYS_URL
+from hex_service_kit.federation import (
+    IAP_ASSERTION_HEADER,
+    IAP_ISSUER,
+    IAP_KEYS_URL,
+    FederationPolicy,
+    principal_from_iap_claims,
+)
 from hex_service_kit.identity import IdentityError, Principal, RequestContext
 
 from ...config import Settings
@@ -66,6 +72,22 @@ _IAP_KEYS_URL = IAP_KEYS_URL
 #: The issuer every IAP assertion carries. ``verify_token`` does not check the issuer at all
 #: (``verify_oauth2_token`` is the wrapper that does), so this adapter checks it itself.
 _IAP_ISSUER = IAP_ISSUER
+
+#: The reviewed policy the CLAIM half is evaluated under, and the whole of what a rendered
+#: deployment decides about a verified caller once its signature has been checked.
+#:
+#: It is a literal rather than a setting because every value in it is a decision the rendered
+#: repository makes: a new service maps no domain to a tenant id and no domain to a group, and
+#: takes the hosted domain as the tenant id.
+#:
+#: ``tenant_from_hosted_domain`` is ON, and it is an OPT-IN rather than a fallback. IAP
+#: restricts the audience to one organisation on these deployments, so the ``hd`` claim and the
+#: tenant partition are the same string. Left OFF, these same assertions would resolve to no
+#: tenant at all: fail-closed, but closed for every verified user, and an offline gate would not
+#: notice, because the local profile never constructs this adapter. A rendered repo that grows a
+#: reviewed domain map should fill ``domain_tenants`` and ``domain_groups`` here and turn the
+#: passthrough off, which is the whole reason the choice is written down rather than defaulted.
+_FEDERATION_POLICY = FederationPolicy(tenant_from_hosted_domain=True)
 
 #: Named for the refusal messages. The value is read through ``config/settings.yaml``, whose
 #: ``${VAR}`` expansion is the three-state read; nothing here touches ``os.environ``.
@@ -144,15 +166,30 @@ class IapIdentityAdapter:
         # refused here.
         if str(claims.get("iss") or "") != _IAP_ISSUER:
             raise IdentityError("verified IAP assertion has an unexpected issuer")
+        # ``email`` is required here and not by the commons: ``principal_from_iap_claims``
+        # requires only a subject, and would resolve an assertion carrying ``sub`` alone to a
+        # principal named after an opaque id. This service attributes its audit records to the
+        # address, so an assertion that names nobody a reviewer could recognise is refused
+        # before the claim half runs.
         subject = str(claims.get("sub") or "").strip()
         email = str(claims.get("email") or "").strip()
         if not subject or not email:
             raise IdentityError("verified IAP assertion requires both sub and email")
-        return Principal(
-            subject=email,
-            tenant=str(claims.get("hd") or "").strip(),
-            assurance="iap",
+        # Everything after that is ONE reviewed decision, and it is the commons function rather
+        # than a copy of it: which string is the subject, which partition is the tenant, which
+        # entitlement principals the caller holds, what assurance the audit record carries. The
+        # cryptography stays here, because the kit's core is pure standard library with no
+        # runtime dependencies and verifies nothing.
+        #
+        # ``include_subject_principal`` is stated, never defaulted. A rendered service leaves the
+        # entitlement tuple to the group map alone; the older ``adapters/gcp/iap_identity.py``
+        # family in this fleet grants ``user:<subject>``. That is an authorization decision, so
+        # the call site says which one this is.
+        return principal_from_iap_claims(
+            claims,
+            _FEDERATION_POLICY,
             source="gcp-iap",
+            include_subject_principal=False,
         )
 
     def _verify(self, assertion: str) -> dict[str, Any]:
