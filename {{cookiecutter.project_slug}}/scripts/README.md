@@ -23,6 +23,7 @@ commands work; without an install, prefix with `PYTHONPATH=src`.
 | `check_docs_links.py` | Offline documentation checks: every relative markdown link resolves, every code fence closes, and no em-dash or en-dash reaches shipped prose. |
 | `lock.py` | Compiles both lockfiles and puts the header back, because `uv pip compile` REPLACES the output file: it writes its own two-line provenance comment and destroys the `tag = commit` map the pin tests check against. `make lock` runs this rather than uv directly, and one catalog repo has carried a red gate since somebody ran uv by hand. |
 | `drop_ui.py` | Removes `ui/` together with its npm dependabot ecosystem and its CI job, in one consistent step (`make drop-ui`). Most catalog repos have no user-facing surface; removing the UI must be cheaper than hand-building one. |
+| `render_plugin.py` | Renders the Agent Plugins 1.0.0 directory (`make plugin`) from what this repo ALREADY declares: identity from the A2A agent card, keywords from the governed tool catalog when there is one and from the card's skills when there is not, and `skills/` from `.agents/skills`. Nothing is hand-authored, because a hand-written manifest is a second description of the service and a second description is one that can be wrong. Vendored skills and an MCP server are both DETECTED: a freshly generated repo has neither, renders a valid skills-only plugin, and grows into a full one. Output is build output and is not committed. |
 
 ## The three ways to run the demo
 

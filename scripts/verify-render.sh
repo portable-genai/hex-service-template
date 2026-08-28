@@ -144,7 +144,7 @@ verify_one_render() {
     -e "$WORKSPACE/agent-eval-kit" \
     -e "$WORKSPACE/review-kit" \
     fastapi uvicorn httpx pydantic pyyaml types-PyYAML \
-    ruff==0.15.18 mypy pytest
+    ruff==0.15.18 mypy pytest jsonschema
   # Install the rendered repo itself WITHOUT re-resolving its git+https commons pins.
   uv pip install --quiet --no-deps -e .
 
@@ -169,6 +169,14 @@ verify_one_render() {
   echo "== ruff check =="; ruff check src tests eval scripts
   echo "== ruff format --check =="; ruff format --check src tests eval scripts
   echo "== mypy src =="; mypy src
+
+  # `make plugin` by name, for the same reason as `make lint` above: the target is part of
+  # `make gate`, and a rendered repo that cannot render its own plugin directory is red on
+  # arrival. The unit test exercises the RENDERER; this proves the TARGET, the module path it
+  # names and the package name it was rendered with. A fresh repo has no vendored skills and no
+  # MCP server, so this is also the only place the skills-less, server-less case is executed.
+  echo "== make plugin =="; make plugin
+
   echo "== pytest =="; pytest -m 'not integration'
   echo "== eval (offline smoke) =="; python eval/run_eval.py
 
