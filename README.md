@@ -73,6 +73,14 @@ and an opt-in Cloud Run edge, all checked offline by `make tf-check` and by a CI
 the full mandated artifact set (LICENSE, AGENTS.md, docs/practices-audit.md,
 .env.example, .env.secrets.example). The four commons packages are pre-pinned by tag.
 
+It also packages itself. `make plugin` renders an Agent Plugins 1.0.0 directory from what the
+repo ALREADY declares, so the manifest is never a second description of the service that can go
+out of step with it: identity comes from the A2A agent card, keywords from the governed tool
+catalog when the repo has grown one and from the card's skills when it has not, and `skills/`
+from `.agents/skills`. Both of those last two are DETECTED rather than configured, which is what
+makes it work on day one: a freshly rendered repo has no vendored skills and no MCP server, so it
+renders a valid skills-only plugin and grows into a full one instead of failing on arrival.
+
 Rule R8 is wired, not documented: the rendered service routes every escalated result to the
 review console in the same request that produced it, with a `ReviewRouterPort` bound in all three
 adapter families, and `tests/unit/test_review_routing.py` fails the build if an escalation stops
@@ -118,7 +126,7 @@ Then, in the rendered directory:
 ```sh
 python3.12 -m venv .venv && source .venv/bin/activate   # stdlib venv, so pip is present
 make install                                            # locked install; resolves the four pins
-make gate                                               # offline: lint, types, tests, eval
+make gate                                               # offline: lint, types, tests, eval, plugin
 make audit                                              # pip-audit over both locks (needs network)
 ```
 
@@ -189,9 +197,13 @@ this. New work goes in `{{cookiecutter.project_slug}}/ui/`, which is render-veri
 
 `scripts/verify-render.sh` renders the template ACROSS A MATRIX OF NAME LENGTHS (`short`,
 `default`, `refuted`, `max`), and for each render installs the four commons from their local
-checkouts and runs `make lint` and the full offline gate on the output, THEN the socket-level
-exposure matrix, the demo self-test, the portability tour, the static render and the
-documentation checks, THEN the whole gate again with `ui/` removed. Every row must be green. Run
+checkouts and runs `make lint` and `make plugin` by NAME and then the full offline gate on the
+output, THEN the socket-level exposure matrix, the demo self-test, the portability tour, the
+static render and the documentation checks, THEN the whole gate again with `ui/` removed.
+The two targets are run by name for the same reason: a unit test exercises the renderer, but only
+the target proves the make wiring and the module path it names, and `make plugin` is also the
+only place the skills-less, server-less render is executed, which is the state every new repo
+starts in. Every row must be green. Run
 it after editing any template file.
 
 The matrix exists because nothing in a rendered repo may depend on the LENGTH of a rendered
