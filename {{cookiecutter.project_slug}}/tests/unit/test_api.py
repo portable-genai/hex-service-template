@@ -53,6 +53,33 @@ def test_healthz_reports_profile_and_region(api_client: TestClient) -> None:
     assert body["region"] == "{{ cookiecutter.region }}"
 
 
+def test_healthz_states_the_provenance_the_ui_banner_renders(api_client: TestClient) -> None:
+    """The service half of the banner contract (org decision, 2026-08-30).
+
+    The UI must never infer either value. A console that read its runtime from
+    ``window.location`` would be right until the deployment served through a proxy and
+    wrong silently after that, so the service is asked and the service answers.
+    """
+    body = api_client.get("/healthz").json()
+    assert body["runtime"] == "local"
+    assert body["generator_model"] == "deterministic-offline-stub"
+
+
+@pytest.mark.parametrize(
+    ("profile", "expected"), [("local", "local"), ("gcp", "gcp"), ("onprem", "local")]
+)
+def test_the_runtime_follows_the_profile_and_onprem_is_not_gcp(profile: str, expected: str) -> None:
+    """``onprem`` reads local, and that is the whole point of the profile.
+
+    It runs on the adopter's own iron. Treating any non-local profile as "on GCP" would put
+    the wrong sentence at the top of every page of the one deployment whose selling point is
+    that it is not on GCP.
+    """
+    from {{ cookiecutter.package_name }}.config import Settings
+
+    assert Settings(profile=profile).runtime == expected
+
+
 def test_security_headers_present(api_client: TestClient) -> None:
     headers = api_client.get("/healthz").headers
     assert headers["Content-Security-Policy"] == "frame-ancestors 'self'"

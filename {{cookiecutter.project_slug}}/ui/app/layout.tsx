@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { ProvenanceBanner } from "./ProvenanceBanner";
 import "./globals.css";
 
 // The title is intentionally generic. The service's own identity comes from its agent card at
@@ -18,9 +19,16 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  // The banner is mounted in the LAYOUT, not in a page. "At the top of every page" is a
+  // property of the console, and a page that forgot to include it would be the one page a
+  // screenshot came from. Embedded routes get it too: an embed is exactly where a viewer
+  // has least context about where the answer came from.
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ProvenanceBanner />
+        {children}
+      </body>
     </html>
   );
 }
