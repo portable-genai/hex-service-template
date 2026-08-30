@@ -69,6 +69,9 @@ DEFAULT_SETTINGS_PATH = Path("config") / "settings.yaml"
 LOCAL_PROFILE = "local"
 #: The only profiles this service knows how to bind. Anything else is a configuration error.
 KNOWN_PROFILES: tuple[str, ...] = (LOCAL_PROFILE, "gcp", "onprem")
+#: The profiles whose runtime is a managed cloud, for :attr:`Settings.runtime`. ``onprem`` is
+#: NOT one: its point is that it runs on the adopter's own iron, so the banner says local.
+_MANAGED_PROFILES: frozenset[str] = frozenset({"gcp"})
 
 #: The profile string handed to every RELAXATION when nobody chose a profile at all. It is
 #: deliberately NOT a member of :data:`KNOWN_PROFILES` and it never reaches :class:`Settings` or
@@ -345,6 +348,13 @@ class Settings:
     #: trace resource path. Empty is valid and common: on Cloud Run the exporter resolves the
     #: project from the metadata server, so this only has to be set where that is unavailable.
     project_id: str = ""
+    #: Which model answers, stated for the UI provenance banner (org decision, 2026-08-30:
+    #: every served UI names its runtime and its model). A newly scaffolded service has no
+    #: model at all -- the triage engine is deterministic -- and saying so is the point: the
+    #: honest answer on a page is "deterministic-offline-stub", not a blank field or an
+    #: invented model id. A repo that binds an LLM port sets this to the model it actually
+    #: calls, per profile, in its settings file.
+    generator_model: str = "deterministic-offline-stub"
     #: Was :attr:`profile` chosen DELIBERATELY, or merely inherited because nobody set the
     #: variable? Only :meth:`load` can set this False; direct construction names the profile in
     #: code and is deliberate by definition. The seeded-persona identity adapter refuses to
@@ -354,6 +364,17 @@ class Settings:
     adapters: Mapping[str, Mapping[str, str]] = field(
         default_factory=lambda: {port: dict(t) for port, t in DEFAULT_BINDINGS.items()}
     )
+
+    @property
+    def runtime(self) -> str:
+        """Where this process is running, as the UI banner states it: ``gcp`` or ``local``.
+
+        Derived from the profile rather than sniffed from the environment. A UI that
+        inferred its runtime from ``window.location`` would be right until the day the
+        deployment served through a proxy, and wrong silently after that; the service is
+        the only party that knows, so the service answers.
+        """
+        return "gcp" if self.profile in _MANAGED_PROFILES else "local"
 
     def __post_init__(self) -> None:
         if self.profile not in KNOWN_PROFILES:
