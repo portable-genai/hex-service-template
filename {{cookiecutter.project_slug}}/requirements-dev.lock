@@ -6,10 +6,10 @@
 # all of them. Everything is pinned to an exact version, and the catalog commons are pinned to a
 # 40-character COMMIT SHA rather than to the tag `pyproject.toml` names.
 #
-# A tag is a movable pointer. A lockfile that pins `@v0.5.1` installs whatever that tag points at
-# on the day pip runs, so a re-pushed tag changes what ships with NO diff in this file and no
-# way to notice: it breaks the reproducible-install claim (practices check D1) exactly where the
-# claim is supposed to be strongest. A commit cannot move.
+# A tag is a movable pointer. A lockfile that pins a tag installs whatever that tag points at on
+# the day pip runs, so a re-pushed tag changes what ships with NO diff in this file and no way to
+# notice: it breaks the reproducible-install claim (practices check D1) exactly where the claim is
+# supposed to be strongest. A commit cannot move.
 #
 # Dereference a tag with `git rev-list -n 1 <tag>`, NOT `git rev-parse <tag>`. These are ANNOTATED
 # tags, so `rev-parse` returns the tag OBJECT (a different sha that is not a commit); pinning one
@@ -19,8 +19,8 @@
 # `pyproject.toml` names and against the other lockfile:
 #   hex-service-kit  v{{ cookiecutter.commons_version }} = {{ cookiecutter.commons_commit }}
 #   agent-eval-kit   v{{ cookiecutter.eval_kit_version }} = {{ cookiecutter.eval_kit_commit }}
-#   review-kit  v{{ cookiecutter.review_kit_version }} = {{ cookiecutter.review_kit_commit }}
-#   pii-kit         v{{ cookiecutter.pii_kit_version }} = {{ cookiecutter.pii_kit_commit }}
+#   review-kit       v{{ cookiecutter.review_kit_version }} = {{ cookiecutter.review_kit_commit }}
+#   pii-kit          v{{ cookiecutter.pii_kit_version }} = {{ cookiecutter.pii_kit_commit }}
 agent-eval-kit @ git+https://github.com/portable-genai/agent-eval-kit@{{ cookiecutter.eval_kit_commit }}
     # via {{ cookiecutter.project_slug }} (pyproject.toml)
 annotated-doc==0.0.5
@@ -41,12 +41,10 @@ certifi==2026.7.22
     # via
     #   httpcore
     #   httpx
-click==8.4.2
+click==8.5.0
     # via uvicorn
 colorama==0.4.6 ; sys_platform == 'win32'
-    # via
-    #   click
-    #   pytest
+    # via pytest
 fastapi==0.141.1
     # via hex-service-kit
 h11==0.16.0
@@ -55,13 +53,11 @@ h11==0.16.0
     #   uvicorn
 hex-service-kit @ git+https://github.com/portable-genai/hex-service-kit@{{ cookiecutter.commons_commit }}
     # via {{ cookiecutter.project_slug }} (pyproject.toml)
-review-kit @ git+https://github.com/portable-genai/review-kit@{{ cookiecutter.review_kit_commit }}
-    # via {{ cookiecutter.project_slug }} (pyproject.toml)
 httpcore==1.0.9
     # via httpx
 httpx==0.28.1
     # via agent-eval-kit
-idna==3.18
+idna==3.19
     # via
     #   anyio
     #   httpx
@@ -85,11 +81,11 @@ pii-kit @ git+https://github.com/portable-genai/pii-kit@{{ cookiecutter.pii_kit_
     # via {{ cookiecutter.project_slug }} (pyproject.toml)
 pluggy==1.6.0
     # via pytest
-pydantic==2.13.4
+pydantic==2.13.5
     # via fastapi
-pydantic-core==2.46.4
+pydantic-core==2.46.5
     # via pydantic
-pygments==2.20.0
+pygments==2.21.0
     # via pytest
 pytest==9.1.1
     # via {{ cookiecutter.project_slug }} (pyproject.toml)
@@ -99,17 +95,19 @@ referencing==0.37.0
     # via
     #   jsonschema
     #   jsonschema-specifications
+review-kit @ git+https://github.com/portable-genai/review-kit@{{ cookiecutter.review_kit_commit }}
+    # via {{ cookiecutter.project_slug }} (pyproject.toml)
 rpds-py==2026.6.3
     # via
     #   jsonschema
     #   referencing
-ruff==0.15.18
+ruff==0.16.4
     # via {{ cookiecutter.project_slug }} (pyproject.toml)
-starlette==1.4.1
+starlette==1.6.0
     # via
     #   fastapi
     #   hex-service-kit
-types-pyyaml==6.0.12.20260724
+types-pyyaml==6.0.12.20260815
     # via {{ cookiecutter.project_slug }} (pyproject.toml)
 typing-extensions==4.16.0
     # via
@@ -118,11 +116,12 @@ typing-extensions==4.16.0
     #   mypy
     #   pydantic
     #   pydantic-core
+    #   referencing
     #   starlette
     #   typing-inspection
-typing-inspection==0.4.2
+typing-inspection==0.4.4
     # via
     #   fastapi
     #   pydantic
-uvicorn==0.52.1
+uvicorn==0.52.4
     # via {{ cookiecutter.project_slug }} (pyproject.toml)
