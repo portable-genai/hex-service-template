@@ -62,7 +62,10 @@ def test_healthz_states_the_provenance_the_ui_banner_renders(api_client: TestCli
     """
     body = api_client.get("/healthz").json()
     assert body["runtime"] == "local"
-    assert body["generator_model"] == "deterministic-offline-stub"
+    # `no-model`, not `deterministic-offline-stub`: this template binds no generative port
+    # at all, and the stub string would claim a model-shaped port bound to a stub. The two
+    # are different facts and a reviewer is entitled to know which one they are reading.
+    assert body["generator_model"] == "no-model"
 
 
 @pytest.mark.parametrize(

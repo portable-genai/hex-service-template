@@ -73,6 +73,19 @@ KNOWN_PROFILES: tuple[str, ...] = (LOCAL_PROFILE, "gcp", "onprem")
 #: NOT one: its point is that it runs on the adopter's own iron, so the banner says local.
 _MANAGED_PROFILES: frozenset[str] = frozenset({"gcp"})
 
+#: The port whose ACTIVE binding decides what the provenance banner's model half says, and the
+#: dotted ``Settings`` path holding that model's id. Both are EMPTY here because a newly
+#: scaffolded service binds no generative port: its engine is deterministic and there is no
+#: model to name. A repo that binds one sets these two, and the banner then follows the binding
+#: rather than a settings string somebody has to remember to update alongside it.
+_GENERATOR_PORT: str = ""
+_GENERATOR_MODEL_ATTR: str = ""
+
+#: Constant names a managed adapter may declare its model id under. Several spellings because
+#: the fleet uses several, and a resolver that knew only one would report a bound model as
+#: unnamed.
+_MODEL_CONSTANTS: tuple[str, ...] = ("_MODEL", "_DEFAULT_MODEL")
+
 #: The profile string handed to every RELAXATION when nobody chose a profile at all. It is
 #: deliberately NOT a member of :data:`KNOWN_PROFILES` and it never reaches :class:`Settings` or
 #: a binding table: it exists so that "no choice was made" is a distinct input to the security
@@ -94,6 +107,51 @@ def _validate_profile(profile: str) -> str:
             f"Set it to one of {', '.join(KNOWN_PROFILES)} (exact case) or leave it unset."
         )
     return profile
+
+
+def _model_from_settings(settings: object, path: str) -> str:
+    """The model id at ``path``, or ``""`` when the deployment has not pinned one.
+
+    Honours the hard-reasoning opt-in where a repository has one. A deployment that flips
+    ``models.use_hard_reasoning`` sends reasoning-tier calls to the stronger model, so a banner
+    that kept naming ``models.reasoning`` would state a model the service is no longer calling.
+    """
+    models = getattr(settings, "models", None)
+    hard_reasoning = getattr(models, "hard_reasoning", "")
+    if (
+        path == "models.reasoning"
+        and getattr(models, "use_hard_reasoning", False)
+        and hard_reasoning
+    ):
+        return str(hard_reasoning)
+    value: object = settings
+    for part in path.split("."):
+        value = getattr(value, part, None)
+        if value is None:
+            return ""
+    return str(value or "")
+
+
+def _declared_model(binding: str) -> str:
+    """The model id the bound managed adapter declares as a constant, or ``""``.
+
+    Importing the adapter module is safe with no cloud SDK installed: every cloud import in
+    these adapters lives inside the method that needs it, which is the portability property the
+    parity suite already asserts.
+    """
+    from importlib import import_module
+
+    module_path, _, class_name = binding.partition(":")
+    try:
+        module = import_module(module_path)
+    except ImportError:  # pragma: no cover - the bound module is importable offline
+        return "managed-model-unavailable"
+    for holder in (module, getattr(module, class_name, None)):
+        for name in _MODEL_CONSTANTS:
+            value = getattr(holder, name, None)
+            if value:
+                return str(value)
+    return ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -348,13 +406,6 @@ class Settings:
     #: trace resource path. Empty is valid and common: on Cloud Run the exporter resolves the
     #: project from the metadata server, so this only has to be set where that is unavailable.
     project_id: str = ""
-    #: Which model answers, stated for the UI provenance banner (org decision, 2026-08-30:
-    #: every served UI names its runtime and its model). A newly scaffolded service has no
-    #: model at all -- the triage engine is deterministic -- and saying so is the point: the
-    #: honest answer on a page is "deterministic-offline-stub", not a blank field or an
-    #: invented model id. A repo that binds an LLM port sets this to the model it actually
-    #: calls, per profile, in its settings file.
-    generator_model: str = "deterministic-offline-stub"
     #: Was :attr:`profile` chosen DELIBERATELY, or merely inherited because nobody set the
     #: variable? Only :meth:`load` can set this False; direct construction names the profile in
     #: code and is deliberate by definition. The seeded-persona identity adapter refuses to
@@ -375,6 +426,45 @@ class Settings:
         the only party that knows, so the service answers.
         """
         return "gcp" if self.profile in _MANAGED_PROFILES else "local"
+
+    @property
+    def generator_model(self) -> str:
+        """WHICH model answers, as the UI banner states it (org decision, 2026-08-30).
+
+        Read off the BINDING the container will actually build, never kept as a second settings
+        string: a string is a claim ABOUT the binding, and the two drift the first time somebody
+        rebinds a profile without remembering the second field.
+
+        A newly scaffolded service answers ``no-model``, which is deliberately NOT
+        ``deterministic-offline-stub``. The stub string claims a model-shaped port bound to a
+        stub; this template binds no generative port at all, and a reviewer approving an
+        escalation is entitled to know which of the two they are reading.
+        """
+        if not _GENERATOR_PORT:
+            return "no-model"
+        table = self.adapters.get(_GENERATOR_PORT) or {}
+        binding = str(table.get(self.profile, "") or "")
+        if not binding:
+            return "no-model"
+        if self.profile not in _MANAGED_PROFILES:
+            # The on-prem adapters are fail-fast migration placeholders: they raise rather than
+            # generating, so naming a model would advertise one that never answers.
+            if self.profile == "onprem":
+                return "onprem-not-implemented"
+            return "deterministic-offline-stub"
+        if _GENERATOR_MODEL_ATTR:
+            named = _model_from_settings(self, _GENERATOR_MODEL_ATTR)
+            if named:
+                return named
+            # The field exists and this deployment has not pinned a model. Saying so is
+            # actionable; naming a default would advertise one the deployment never calls.
+            return "managed-model-unset"
+        declared = _declared_model(binding)
+        if declared:
+            return declared
+        # Neither a settings field nor an adapter constant: a deployment-wired placeholder that
+        # raises rather than generating, so there is no model to name.
+        return "managed-not-implemented"
 
     def __post_init__(self) -> None:
         if self.profile not in KNOWN_PROFILES:
