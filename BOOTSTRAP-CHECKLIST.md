@@ -179,6 +179,11 @@ report it against `hex-service-template`, because it is failing in every repo re
   prerendered route blocks even more. Do not "simplify" either one, and do not reach for
   `'unsafe-inline'`. `assertHydratableCsp` fails the build if `app/layout.tsx` loses
   `force-dynamic`, and the ui gate runs `npm run assert-hydratable` against a real build.
+- **`next dev` writes no documents.** `next.config.mjs` sets `agentRules: false`, because the
+  default generates `ui/AGENTS.md` and `ui/CLAUDE.md`: a second working agreement plus the
+  tool-specific alias the catalog convention forbids, and its prose carries an em-dash that
+  `make docs-check` fails on. The gate asserts the flag AND asserts both files are absent, so a
+  framework bump that renames the option is caught by the artifact rather than by the spelling.
 - **If this repo has no user-facing surface, run `make drop-ui`.** It removes the directory, its
   dependabot ecosystem and its CI job together; the gate checks the three for consistency in both
   directions, so half a removal fails the build.
@@ -298,6 +303,16 @@ Read these before editing the TEMPLATE (not the rendered repo).
   em-dash check is a silent no-op. The correct form is
   `git diff --cached -U0 -- '*.md' '*.html' | grep -nE $'\u2014|\u2013'`. The rendered repo
   enforces this itself through `make docs-check`.
+- **The `ui/` toolchain writes into the rendered tree, and `verify-render.sh` never starts it.**
+  The render gate runs the UI's policy tests in bare node with no `node_modules`, deliberately,
+  so nothing in it has ever executed `next dev`, `next build` or a lifecycle script. Next 16.3.0
+  shipped a default that generates `ui/AGENTS.md` and `ui/CLAUDE.md` on `next dev`, and it
+  reached fifteen repos before anyone noticed, because it appears only when somebody starts the
+  dev server and only as an untracked file. `agentRules: false` in `ui/next.config.mjs` turns
+  that one off. The general rule: after bumping `next`, read its release notes for anything that
+  WRITES, and prove the fix by installing and running the dev server in a scratch render by
+  hand. The gate cannot do it for you, so the offline gate asserts the ARTIFACTS are absent as
+  well as the flag.
 
 ## 5. Verifying a template change
 
