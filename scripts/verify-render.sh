@@ -144,7 +144,7 @@ verify_one_render() {
     -e "$WORKSPACE/agent-eval-kit" \
     -e "$WORKSPACE/review-kit" \
     fastapi uvicorn httpx pydantic pyyaml types-PyYAML \
-    ruff==0.15.18 mypy pytest jsonschema
+    ruff==0.16.4 mypy pytest jsonschema
   # Install the rendered repo itself WITHOUT re-resolving its git+https commons pins.
   uv pip install --quiet --no-deps -e .
 

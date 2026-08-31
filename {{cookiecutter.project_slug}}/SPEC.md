@@ -3,7 +3,7 @@
 Locked decisions, pinned stack, contracts. This document is the deepest authority on intent.
 
 ## Pinned stack
-- Python `>=3.12`; ruff pinned exactly (`0.15.18`); mypy strict; deploy region `{{ cookiecutter.region }}`.
+- Python `>=3.12`; ruff pinned exactly (`0.16.4`); mypy strict; deploy region `{{ cookiecutter.region }}`.
 - Commons declared by tag in `pyproject.toml` (`pii-kit@v{{ cookiecutter.pii_kit_version }}`, `hex-service-kit@v{{ cookiecutter.commons_version }}`, `agent-eval-kit@v{{ cookiecutter.eval_kit_version }}`, `review-kit@v{{ cookiecutter.review_kit_version }}`) and pinned in the lockfiles to the 40-character COMMIT each tag resolved to. A tag can be moved; a commit cannot, so a lockfile that pinned the tag would let what installs change with no diff. `tests/unit/test_repo_artifacts.py` asserts the three-way agreement offline.
 - The `hex-service-kit` pin is a security floor, not a preference: releases from v0.4.0 onward
   check the service-identity policy before the token, gate the zero-secret local opening on an
