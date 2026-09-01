@@ -13,8 +13,8 @@ Siblings: `pii-kit`, `hex-service-kit`, `agent-eval-kit`.
 
 ## Layout
 
-- `reusable-workflows/hard-gate.yaml` and `.github/workflows/hard-gate.yaml` are the SAME file
-  (canonical source + hosted copy so the `uses:` ref resolves). Keep them in sync.
+- There are no workflow files, here or in a render. GitHub Actions are disabled organization-wide,
+  so the gate is the hosted Cloud Build trigger defined in `org-metadata`. See README section 1.
 - `cookiecutter.json` declares the variables (`friendly_name`, `project_slug`, `package_name`,
   `catalog_id`, `description`, `env_prefix`, `region`, and a PAIR per commons package: a version
   variable naming the release TAG that `pyproject.toml` declares, and a commit variable carrying
@@ -103,10 +103,10 @@ never mistaken for a real repo.
 
 - **The rendered repo's offline gate must stay green.** That is the whole value: a new repo starts
   at parity, not converging toward it.
-- **Keep the two hard-gate.yaml copies identical.** When the workflow BODY changes, cut and push a
-  new tag AND bump the `uses:` ref in `{{cookiecutter.project_slug}}/.github/workflows/ci.yaml`,
-  or every repo rendered afterwards calls a stale workflow. The rendered
-  `tests/test_repo_artifacts.py` enforces that the ref is a tag, never a branch.
+- **Register a new repo in `org-metadata/ci/gcp/repository-policy.json`.** A render ships no
+  workflow, so the hosted Cloud Build trigger is its only gate, and a repo absent from that file
+  gets no trigger and no required check with nothing reporting the omission. Changing what the
+  gate DOES is a change to the runner and the policy, not to N per-repo files.
 - **Rule R8 is wired, not documented.** The rendered service routes every escalated result to the
   Hrz7 console through `review-kit`, in the same request that produced it, with a
   `ReviewRouterPort` bound in all three families. A local adapter that silently did nothing would
