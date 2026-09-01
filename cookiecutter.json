@@ -15,7 +15,6 @@
   "pii_kit_commit": "654493048a8434d645757cc916bb9d446313688f",
   "review_kit_commit": "47c05c64fa115d9aa07c0f349be5ec5d807bbe95",
   "_copy_without_render": [
-    ".github/workflows/*",
     "infra/terraform/*.tf",
     "infra/terraform/*.tftest.hcl",
     "ui/app/*",

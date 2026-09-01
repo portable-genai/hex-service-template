@@ -7,8 +7,6 @@ three adapter profiles, and its offline gate is green on render.
 ## What is here
 
 ```
-reusable-workflows/hard-gate.yaml      # the workflow_call reusable workflow (canonical source)
-.github/workflows/hard-gate.yaml       # the same file, hosted so `uses: .../hard-gate.yaml@v0.0.1` resolves
 cookiecutter.json                      # the template variables
 {{cookiecutter.project_slug}}/         # the generated repo (a complete hexagonal agent)
 BOOTSTRAP-CHECKLIST.md                 # the contract for whoever builds the next repo
@@ -20,44 +18,34 @@ exactly what a rendered repo already has, what must be done first, and what rema
 per-repo work. It is the contract the repo-building agents follow; keeping it current is part of
 changing this template, not a follow-up.
 
-## 1. The reusable hard-gate workflow
+## 1. Where the gate runs
 
-The catalog's SDK-free hard gate (`ruff` + `ruff format` + `mypy --strict` + `pytest -m 'not
-integration'` + `eval`) and the `pip-audit` supply-chain job, as one `workflow_call` workflow with
-SHA-pinned actions. `pip-audit` is a HARD gate: no `continue-on-error`, so a known-vulnerable
-dependency fails the run exactly like a failing test. A consuming repo replaces its per-repo CI
-body with:
+A rendered repo ships no CI workflow, and that is deliberate. GitHub Actions are disabled for the
+whole organization (`enabled_repositories: "none"`), so a workflow file here would be a
+definition nobody executes. The template used to carry a reusable `hard-gate.yaml` and render a
+thin `ci.yaml` calling it; both were retired once it was established that they had never run.
+Unrunnable configuration rots silently, and these had: they still pinned python 3.12 and 3.13
+long after the fleet moved to 3.14.
 
-```yaml
-jobs:
-  gate:
-    uses: portable-genai/hex-service-template/.github/workflows/hard-gate.yaml@v0.0.1
-    with:
-      python-versions: '["3.12", "3.13"]'
-      run-eval: true
-      dev-lockfile: requirements-dev.lock
-      runtime-lockfile: requirements-gcp.lock
-      iap-matrix-path: tests/unit/test_iap_crypto_matrix.py
-```
+The gate that actually runs is the hosted Cloud Build trigger, defined in
+`org-metadata/ci/gcp/repository-policy.json` and executed by `org-metadata/ci/gcp/runner/run-grc-ci`.
+It is the required status check on `main`, and per repository it runs:
 
-`iap-matrix-path` names the IAP negative matrix, which cannot run in the gate above because
-google-auth is deliberately absent from the dev lockfile. Naming it adds a job that installs the
-RUNTIME lockfile and runs that module with its require-flag on, so a missing verifier is an error
-rather than a silent skip: the one adapter whose declaration stands the loopback exposure guard
-down must not be the one adapter nobody tests. The job stays offline (the signing key is minted
-in-process and the key-set fetch is served in-process). It reads the environment prefix out of the
-repo's `.env.example`, because workflow files are copied without rendering and a per-repo literal
-in a workflow is wrong exactly once. Leave the input empty and the job does not run at all.
+- the repo's own `gate` (or `check`) target: `ruff` + `ruff format` + `mypy --strict` +
+  `pytest -m 'not integration'` + `eval`
+- `ui-check` where the repo has a UI
+- `terraform test` where the repo ships `infra/terraform`
+- `lint-gcp`, which type-checks the cloud adapters against the runtime lockfile
+- the IAP negative matrix, named by `iap_matrix_path`, installed from the RUNTIME lockfile with
+  its require-flag on so a missing verifier is an error rather than a silent skip. The one
+  adapter whose declaration stands the loopback exposure guard down must not be the one adapter
+  nobody tests. It stays offline: the signing key is minted in-process and the key-set fetch is
+  served in-process, and the runner reads the environment prefix out of the repo's
+  `.env.example` rather than carrying a per-repo literal.
 
-The two lockfile inputs default to empty, so a repo that has not compiled its locks keeps the
-older extras-based install. When they are set, CI installs from the lock and then the project with
-`--no-deps` (the lock stays authoritative), and `pip-audit` judges exactly the versions CI and the
-container image install rather than a fresh resolve nobody ships. Every repo rendered from the
-template passes them.
-
-Bumping the gate for every repo becomes a change to the ref, not N per-repo edits (this retires
-the RECURRENCE of the supply-chain sweep). To resolve across private repos of one owner, enable
-"Accessible from repositories owned by the user" in this repo's Actions settings.
+**A new repository must be registered in `repository-policy.json`.** A repo that is missing from
+it gets no trigger and no required check, and nothing reports the omission: it is simply
+ungated. Registering it is part of bootstrapping, not a follow-up.
 
 ## 2. The cookiecutter template
 

@@ -162,7 +162,14 @@ def test_the_renderer_escapes_content_rather_than_interpolating_it() -> None:
 
 @pytest.mark.parametrize(
     "target",
-    ["demo:", "demo-selftest:", "demo-static:", "demo-server:", "portability:", "docs-check:"],
+    [
+        "demo:",
+        "demo-selftest:",
+        "demo-static:",
+        "demo-server:",
+        "portability:",
+        "docs-check:",
+    ],
 )
 def test_the_makefile_exposes_the_demo_surface(target: str) -> None:
     makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
@@ -175,11 +182,3 @@ def test_the_demo_is_not_part_of_the_hard_gate() -> None:
     gate_line = next(line for line in makefile.splitlines() if line.startswith("gate:"))
     for demo_target in ("demo", "demo-selftest", "demo-static", "portability"):
         assert demo_target not in gate_line.split(":", 1)[1].split()
-
-
-def test_the_demo_self_test_runs_in_ci() -> None:
-    """Outside the gate is not the same as unenforced: the demo has its own required check."""
-    workflow = REPO_ROOT / ".github" / "workflows" / "demo-gate.yaml"
-    body = workflow.read_text(encoding="utf-8")
-    for command in ("make demo-selftest", "make portability", "make docs-check"):
-        assert command in body, "demo-gate.yaml does not run " + command
