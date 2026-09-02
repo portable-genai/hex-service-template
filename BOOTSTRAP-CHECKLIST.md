@@ -152,12 +152,14 @@ report it against `hex-service-template`, because it is failing in every repo re
   own terraform step. `terraform test` is the half that carries the refusals, over `mock_provider` and
   plan-only runs, so it needs no project and no credentials either.
 - `make audit`: `pip-audit` over both lockfiles (the one step that needs network).
-- No workflows, deliberately. GitHub Actions are disabled for the whole organization, so a
-  rendered repo ships none. CI is the hosted Cloud Build trigger, which runs this repo's OWN
-  make targets: the gate, the demo self-test, the portability tour, `ui-check` where there is a
-  UI, and the terraform test. It reaches a new repository only once
-  `org-metadata/ci/gcp/repository-policy.json` names it; until then the repo is gated by its
-  local `make gate` alone, and nothing reports that gap.
+- No hand-written workflows, deliberately. CI is a GitHub Actions caller RENDERED from the
+  reviewed contract, which runs this repo's OWN make targets: the gate, the demo self-test, the
+  portability tour, `ui-check` where there is a UI, and the terraform test. It reaches a new
+  repository only once `org-metadata/ci/gcp/repository-policy.json` names it and the caller is
+  rendered and committed; until then the repo is gated by its local `make gate` alone, and
+  nothing reports that gap. Registering a new repository is therefore a step someone has to
+  take -- the seven commons kits sat in the contract with no required check at all until
+  2026-09-02, and nothing anywhere reported it.
 - Committed `requirements-dev.lock`, `requirements-gcp.lock` and `ui/package-lock.json`; every
   install path uses them; dependabot watches pip, docker and npm.
 

@@ -20,14 +20,19 @@ changing this template, not a follow-up.
 
 ## 1. Where the gate runs
 
-A rendered repo ships no CI workflow, and that is deliberate. GitHub Actions are disabled for the
-whole organization (`enabled_repositories: "none"`), so a workflow file here would be a
-definition nobody executes. The template used to carry a reusable `hard-gate.yaml` and render a
-thin `ci.yaml` calling it; both were retired once it was established that they had never run.
-Unrunnable configuration rots silently, and these had: they still pinned python 3.12 and 3.13
-long after the fleet moved to 3.14.
+A rendered repo ships no CI workflow of its own, and that is deliberate -- but the reason changed
+on 2026-09-02 and the shape did not. GitHub Actions are now the fleet's CI. What a rendered repo
+still does not carry is a HAND-WRITTEN workflow: every repository's caller is RENDERED from the
+reviewed job contract by `org-metadata/scripts/render-actions-callers.py`, and `--check` fails the
+gate when a committed caller differs from what the contract renders.
 
-The gate that actually runs is the hosted Cloud Build trigger, defined in
+That is the same rule this section always stated, held for the reason the previous generation
+proved. The template used to carry a reusable `hard-gate.yaml` and render a thin `ci.yaml`
+calling it; both were retired once it was established that they had never run. Unrunnable
+configuration rots silently, and these had: they still pinned python 3.12 and 3.13 long after the
+fleet moved to 3.14. A hand-maintained workflow per repository is how that happens.
+
+The gate that actually runs is the rendered GitHub Actions caller, from the contract in
 `org-metadata/ci/gcp/repository-policy.json` and executed by `org-metadata/ci/gcp/runner/run-grc-ci`.
 It is the required status check on `main`, and per repository it runs:
 
