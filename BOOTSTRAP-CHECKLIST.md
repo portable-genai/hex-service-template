@@ -148,16 +148,18 @@ report it against `hex-service-template`, because it is failing in every repo re
   and the offline eval smoke check. Offline, credential-free, network-free.
 - `make tf-check`: `terraform init -backend=false`, `validate`, `fmt -check -recursive` and
   `test`. Deliberately OUTSIDE `make gate` (it needs the terraform binary, and the gate must run
-  on Python alone), but not optional: the `terraform` job in `ci.yaml` runs the same four
-  commands. `terraform test` is the half that carries the refusals, over `mock_provider` and
+  on Python alone), but not optional: the hosted check runs the same four commands in its
+  own terraform step. `terraform test` is the half that carries the refusals, over `mock_provider` and
   plan-only runs, so it needs no project and no credentials either.
 - `make audit`: `pip-audit` over both lockfiles (the one step that needs network).
-- Workflows: `ci.yaml` (calls the shared reusable hard gate, pinned to a TAG, plus the offline
-  `terraform` job), `eval-gate.yaml`, `demo-gate.yaml` (the demo self-test, portability, static
-  render and docs checks) and `ui-gate.yaml` (tsc, node tests, production build, `npm audit`, all
-  guarded by a presence check so the workflow is correct with or without `ui/`).
+- No workflows, deliberately. GitHub Actions are disabled for the whole organization, so a
+  rendered repo ships none. CI is the hosted Cloud Build trigger, which runs this repo's OWN
+  make targets: the gate, the demo self-test, the portability tour, `ui-check` where there is a
+  UI, and the terraform test. It reaches a new repository only once
+  `org-metadata/ci/gcp/repository-policy.json` names it; until then the repo is gated by its
+  local `make gate` alone, and nothing reports that gap.
 - Committed `requirements-dev.lock`, `requirements-gcp.lock` and `ui/package-lock.json`; every
-  install path uses them; dependabot watches pip, docker, github-actions and npm.
+  install path uses them; dependabot watches pip, docker and npm.
 
 ### The demo surface (`scripts/`, all offline and stdlib-only)
 - `make demo` : the presenter-paced eight-step walkthrough, starting its own loopback server,
