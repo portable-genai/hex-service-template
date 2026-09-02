@@ -13,8 +13,9 @@ Siblings: `pii-kit`, `hex-service-kit`, `agent-eval-kit`.
 
 ## Layout
 
-- There are no workflow files, here or in a render. GitHub Actions are disabled organization-wide,
-  so the gate is the hosted Cloud Build trigger defined in `org-metadata`. See README section 1.
+- There are no HAND-WRITTEN workflow files, here or in a render. GitHub Actions are the fleet's CI
+  since 2026-09-02, and each repository's caller is rendered from the reviewed job contract in
+  `org-metadata`, never authored in the repository. See README section 1.
 - `cookiecutter.json` declares the variables (`friendly_name`, `project_slug`, `package_name`,
   `catalog_id`, `description`, `env_prefix`, `region`, and a PAIR per commons package: a version
   variable naming the release TAG that `pyproject.toml` declares, and a commit variable carrying
@@ -104,7 +105,7 @@ never mistaken for a real repo.
 - **The rendered repo's offline gate must stay green.** That is the whole value: a new repo starts
   at parity, not converging toward it.
 - **Register a new repo in `org-metadata/ci/gcp/repository-policy.json`.** A render ships no
-  workflow, so the hosted Cloud Build trigger is its only gate, and a repo absent from that file
+  workflow, so the rendered GitHub Actions caller is its only gate, and a repo absent from that file
   gets no trigger and no required check with nothing reporting the omission. Changing what the
   gate DOES is a change to the runner and the policy, not to N per-repo files.
 - **Rule R8 is wired, not documented.** The rendered service routes every escalated result to the
