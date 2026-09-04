@@ -237,8 +237,6 @@ def render_page(
         + _esc(state["service"])
         + ' <span class="sub">'
         + _esc(state["repository"])
-        + " / "
-        + _esc(state["repository"])
         + "</span></h1>"
         + '<div class="sub mono">'
         + _esc(summary)
