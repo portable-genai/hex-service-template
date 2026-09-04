@@ -1,6 +1,6 @@
 # hex-service-template
 
-A **reusable CI workflow** + a **cookiecutter template** that starts a new hexagonal agent repo AT Doc1 parity instead of
+A **reusable CI workflow** + a **cookiecutter template** that starts a new hexagonal agent repo AT `cdd-sow-research` parity instead of
 converging toward it. It pins the three commons packages, ships the mandated doc set and the
 three adapter profiles, and its offline gate is green on render.
 
@@ -57,7 +57,7 @@ ungated. Registering it is part of bootstrapping, not a follow-up.
 Generates a complete hexagonal agent repo: a pure-stdlib domain core with a deterministic service,
 `@runtime_checkable` ports, three adapter profiles (local / gcp-lazy / onprem placeholder), a DI
 container driven by `config/settings.yaml`, a FastAPI app wired with the commons identity / S2S /
-fail-closed helpers, rule R8 routing to the Hrz7 review console through `review-kit`, an
+fail-closed helpers, rule R8 routing to the `human-review-console` through `review-kit`, an
 `eval/run_eval.py` using the eval-kit scaffold + a not-falsely-green test, committed lockfiles, a
 hardened Dockerfile (digest-pinned, non-root, healthchecked), a vertical-neutral
 `infra/terraform/` deploy posture (residency validated at plan time, Org Policy, regional CMEK,
@@ -92,7 +92,7 @@ Interactively:
 ```sh
 uv tool install cookiecutter                      # or: pip install cookiecutter
 cookiecutter path/to/hex-service-template
-# answer the prompts (project_slug, package_name, catalog_id, env_prefix, region, ...)
+# answer the prompts (project_slug, package_name, env_prefix, region, ...)
 cd <project_slug> && make install && make gate    # the offline gate is green on render
 ```
 
@@ -104,7 +104,6 @@ cookiecutter --no-input --output-dir ~/Documents/portable-genai path/to/hex-serv
   friendly_name="Contact Centre AI" \
   project_slug="contact-centre-conversations" \
   package_name="contact_centre_conversations" \
-  catalog_id="E1" \
   description="A grounded, audited contact-centre assistant." \
   env_prefix="CONTACT" \
   region="asia-southeast1" \

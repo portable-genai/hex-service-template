@@ -6,7 +6,7 @@ keep in step.
 
 ## What this is
 
-{{ cookiecutter.friendly_name }} ({{ cookiecutter.catalog_id }}): {{ cookiecutter.description }}
+{{ cookiecutter.friendly_name }}: {{ cookiecutter.description }}
 Rendered from `hex-service-template`, so it starts at reference parity rather than converging
 toward it. Package `{{ cookiecutter.package_name }}`, environment prefix
 `{{ cookiecutter.env_prefix }}`, region `{{ cookiecutter.region }}`.
@@ -67,7 +67,7 @@ Hexagonal, ports and adapters:
   Armor. `render.tf.json` is the ONE file cookiecutter rendered; every `.tf` and `.tftest.hcl`
   beside it was copied verbatim, because Terraform interpolation and Jinja fight over braces.
   The render-time constants therefore arrive as JSON locals (`render_region`,
-  `render_package_name`, `render_env_prefix`, `render_catalog_id`) and `naming.tf` derives
+  `render_package_name`, `render_env_prefix`, `render_repository`) and `naming.tf` derives
   everything else from them. `make tf-check` runs the whole offline check; the vertical's own
   resources (a store, a warehouse, a bucket) are yours to add, in four places at once.
 

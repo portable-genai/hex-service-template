@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluation gate for {{ cookiecutter.friendly_name }} ({{ cookiecutter.catalog_id }}).
+"""Evaluation gate for {{ cookiecutter.friendly_name }}.
 
 Two named layers via ``--mode`` (the scaffold is ``agent_eval_kit.eval_main``):
 
@@ -224,6 +224,6 @@ if __name__ == "__main__":
             smoke=run_smoke,
             gate=run_gate,
             default_dataset=DEFAULT_DATASET,
-            description="Offline / promotion gate for {{ cookiecutter.catalog_id }}.",
+            description="Offline / promotion gate for {{ cookiecutter.project_slug }}.",
         )
     )
