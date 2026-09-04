@@ -74,7 +74,6 @@ def loaded_cloud_sdks() -> tuple[str, ...]:
 #: Rendered identity, bound once so no other line's length depends on how long a name is.
 SERVICE_NAME = "{{ cookiecutter.friendly_name }}"
 REPOSITORY = "{{ cookiecutter.project_slug }}"
-REPOSITORY = "{{ cookiecutter.project_slug }}"
 
 # --------------------------------------------------------------------------------------- #
 # Synthetic data. Fictional parties, .example domains, RFC 5737 / RFC 3849 literals only.
@@ -653,7 +652,6 @@ class DemoRun:
         current = self.results[-1]
         return {
             "service": SERVICE_NAME,
-            "repository": REPOSITORY,
             "repository": REPOSITORY,
             "profile": self.settings.profile,
             "region": self.settings.region,
