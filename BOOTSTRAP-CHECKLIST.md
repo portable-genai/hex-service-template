@@ -22,7 +22,6 @@ uvx --from cookiecutter cookiecutter --no-input \
   friendly_name="Contact Centre Assistant" \
   project_slug=contact-centre-conversations \
   package_name=contact_centre_assistant \
-  catalog_id=E1 \
   env_prefix=CONTACT \
   region=australia-southeast1 \
   description="One sentence, in the catalog's voice."
@@ -35,8 +34,8 @@ Rules that are not negotiable:
 - **Rendering is not idempotent.** Always render into a clean path. Re-rendering over an existing
   directory produces a mixture of both.
 - `project_slug` must match the repository name as listed on the organization front page,
-  <https://github.com/portable-genai>, and `catalog_id` must match the catalog id that page
-  lists for it. They are how the rest of the catalog finds this repo.
+  <https://github.com/portable-genai>. It is how the rest of the catalog finds this repo, and
+  it is the repository's only identity.
 - `package_name` is a Python identifier: lowercase, underscores. `env_prefix` is uppercase and
   short; it prefixes every environment variable this service reads.
 - `region` is the residency region and is shared by the runtime and Terraform. Pick it from the
@@ -202,7 +201,7 @@ report it against `hex-service-template`, because it is failing in every repo re
   __name__)` and log freely; only the allowlisted extras (`tenant`, `actor`, `correlation_id`)
   reach the sink, so an accidental `extra={"prompt": ...}` cannot leak.
 - Where spans GO is deployment configuration, not code: `OTEL_EXPORTER_OTLP_ENDPOINT` set means
-  OTLP to the Hrz5 collector, unset means straight to Cloud Trace. Do not add a profile for it.
+  OTLP to the `agent-observability` collector, unset means straight to Cloud Trace. Do not add a profile for it.
 
 ### Documents
 - `SPEC.md` > `ARCHITECTURE.md` > `COMPLIANCE.md` > `README.md` (the declared authority order),
@@ -256,7 +255,7 @@ rendered repo until you close it.
 | 3 | **Bank-owned policy numbers in config.** The severity bands are module constants; lift them into a frozen policy dataclass with a `policy:` block in `config/settings.yaml`. | The numbers are the client's, and the shape depends on your engine. | practices-audit `B4` |
 | 4 | **`docs/ADOPTING.md`** if this repo will itself be forked. | Only you know whether it will. | practices-audit `G3` |
 | 5 | **`docs/faq/`** (security, compliance, features, portability, adoption), referencing sibling systems. | The answers are vertical-specific. | practices-audit `G5` |
-| 6 | **Hrz3 registration of the agent card**, and the Hrz1 guardrail, Hrz5 observability and Hrz4 bundle bindings. | Needs the live horizontals. | `COMPLIANCE.md` R1, R2, R4, R5 |
+| 6 | **`agent-registry` registration of the agent card**, and the `agent-guardrail-gateway`, `agent-observability` and `model-quality-gate` bundle bindings. | Needs the live horizontals. | `COMPLIANCE.md` R1, R2, R4, R5 |
 | 7 | **A grounded retrieval port** and the hard error on empty retrieval. | Only exists once there is a knowledge base to ground against. | `COMPLIANCE.md` P-05; practices-audit `B2` |
 | 8 | **A model card** and the model routing, budget and kill-switch controls. | Needs the chosen model and the chosen limits. | `COMPLIANCE.md` P-07, P-10, P-11 |
 | 9 | **Object-level authorisation from data tags.** The tenant partition is carried on outbound reviews; there is no queryable store yet to authorise against. | Arrives with your first data store. | practices-audit `C2` |

@@ -1,4 +1,4 @@
-"""{{ cookiecutter.friendly_name }} ({{ cookiecutter.catalog_id }}).
+"""{{ cookiecutter.friendly_name }}.
 
 {{ cookiecutter.description }}
 

@@ -4,6 +4,6 @@
     "render_region": "{{ cookiecutter.region }}",
     "render_package_name": "{{ cookiecutter.package_name }}",
     "render_env_prefix": "{{ cookiecutter.env_prefix }}",
-    "render_catalog_id": "{{ cookiecutter.catalog_id }}"
+    "render_repository": "{{ cookiecutter.project_slug }}"
   }
 }

@@ -38,15 +38,16 @@ import sys
 #:   92 columns, which leaves 8 columns for a deeper module added later.
 #: * env_prefix 32: the binding constraint is prose that names ``<PREFIX>_AUDIT_ANCHOR`` and
 #:   friends inside a docstring or a Makefile comment.
-#: * friendly_name 48 and catalog_id 8: they share a module docstring's summary line
-#:   (``"""FastAPI application for <NAME> (<ID>).``), which is the tightest pairing in the tree.
+#: * friendly_name 48: it is a module docstring's whole summary line
+#:   (``"""FastAPI application for <NAME>.``), which is the tightest line in the tree. The
+#:   repository name used to share it as a parenthetical id; a file no longer restates the
+#:   repository it lives in, so the line carries one value.
 #: * region 24: longer than any current GCP region id, and it shares a line with nothing.
 #: * description 96: it is the whole of ``src/<package>/__init__.py``'s second paragraph line.
 MAX_LENGTHS = {
     "project_slug": 63,
     "package_name": 48,
     "env_prefix": 32,
-    "catalog_id": 8,
     "friendly_name": 48,
     "region": 24,
     "description": 96,
@@ -69,10 +70,6 @@ PATTERNS = {
         "upper-case letters, digits and single underscores, starting with a letter "
         "(it is prefixed to environment variable names such as <PREFIX>_PROFILE)",
     ),
-    "catalog_id": (
-        re.compile(r"^[A-Za-z][A-Za-z0-9]*$"),
-        "letters and digits, starting with a letter (it is a catalog key such as Doc1)",
-    ),
     "region": (
         re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$"),
         "a cloud region id such as asia-southeast1",
@@ -83,7 +80,6 @@ VALUES = {
     "project_slug": "{{ cookiecutter.project_slug }}",
     "package_name": "{{ cookiecutter.package_name }}",
     "env_prefix": "{{ cookiecutter.env_prefix }}",
-    "catalog_id": "{{ cookiecutter.catalog_id }}",
     "friendly_name": "{{ cookiecutter.friendly_name }}",
     "region": "{{ cookiecutter.region }}",
     "description": "{{ cookiecutter.description }}",
