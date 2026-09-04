@@ -1,7 +1,7 @@
 # Common-base practices audit
 
 - **Repo:** `{{ cookiecutter.project_slug }}`
-- **Catalog id:** {{ cookiecutter.catalog_id }} (package `{{ cookiecutter.package_name }}`, env prefix `{{ cookiecutter.env_prefix }}`)
+- **Repository:** {{ cookiecutter.project_slug }} (package `{{ cookiecutter.package_name }}`, env prefix `{{ cookiecutter.env_prefix }}`)
 - **Date:** day one (rendered from `hex-service-template`)
 - **Catalogue reference:** [`common-base-practices.md`](https://github.com/portable-genai/.github/blob/main/common-base-practices.md) (checks A1..G7)
 
@@ -16,7 +16,7 @@ surface and a vertical-neutral `infra/terraform/` deploy posture, so the `[ui]`,
 `[infra]` checks all apply on day one. What `infra/terraform/` does NOT carry is this vertical's
 own data-plane resources; adding one means adding its API, its CMEK service-agent binding, its
 least-privilege role and its perimeter entry in the same commit. The agent is scaffolded
-and tested but not yet registered with Hrz3; see the R4 row in `COMPLIANCE.md`. A repo with no
+and tested but not yet registered with `agent-registry`; see the R4 row in `COMPLIANCE.md`. A repo with no
 user-facing surface should run `make drop-ui` and mark the `[ui]` rows N/A, rather than leaving
 a UI half-wired.
 **Load-bearing** checks (a FAIL breaks a shared catalog guarantee) are A1-A6, C1-C5, D1-D3 and E1.
@@ -30,7 +30,7 @@ a UI half-wired.
 | **A5** Lazy cloud imports in cloud adapters `[all]` **(load-bearing)** | PASS | The `google.cloud` import lives inside `CloudAuditAdapter.record`. Proved by BLOCKING the import in a fresh interpreter (`tests/contract/_sdk_free_probe.py`), not by the SDK happening to be absent from the machine. |
 | **A6** Contract tests enforce the hexagon; port map cannot drift `[all]` **(load-bearing)** | PASS | `tests/contract/test_port_parity.py` asserts set equality across ALL FIVE homes of a port (Protocol map, `DEFAULT_BINDINGS`, `Container` accessor, settings file, canonical-call table), so an unregistered port cannot run untested; `tests/contract/test_behavioral_parity.py` proves the offline family answers, the on-premises family raises and the managed family refuses rather than silently succeeding; `tests/unit/test_settings_file.py` holds the two binding tables equal. |
 | **A7** Kernel vs vertical split in the domain `[all]` | PASS | `domain/kernel.py` (neutral) vs `domain/models.py` (this vertical); `models.py` imports `kernel`, never the reverse. |
-| **A8** Consume platform horizontals via thin delegates `[all]` | PARTIAL | Hrz7 is consumed through `adapters/*/review_router.py` via the shared `review-kit`. Wire the remaining horizontals (guardrail, KB, observability, quality) as this vertical needs them; `COMPLIANCE.md` carries an explicit TODO row for each. |
+| **A8** Consume platform horizontals via thin delegates `[all]` | PARTIAL | `human-review-console` is consumed through `adapters/*/review_router.py` via the shared `review-kit`. Wire the remaining horizontals (guardrail, KB, observability, quality) as this vertical needs them; `COMPLIANCE.md` carries an explicit TODO row for each. |
 | **B1** Consequential math is deterministic, pure, replayable `[agentic]` | PASS | `domain/triage_service.py` is pure stdlib and replayable; an LLM narrates only, and never produces the severity band. |
 | **B2** Every claim carries a citation; empty retrieval is a hard error `[agentic]` | PASS | Every `TriageResult` carries a `Citation`. Extend to a hard error on empty retrieval when a retrieval port is added. |
 | **B3** Maker-checker on every consequential output `[agentic]` | PASS | `requires_human_review` plus rule R8 routing through `ReviewRouterPort`, in the API request and the CLI; `tests/unit/test_review_routing.py` proves an escalation produces an outbound review and a non-escalation does not, on the API, CLI and agent paths alike. |
@@ -51,7 +51,7 @@ a UI half-wired.
 | **D3** Whole gate runs offline, zero org secrets `[all]` **(load-bearing)** | PASS | `make gate` needs no network, no cloud SDK and no credentials; the workflow references no `secrets.`. Anything that does need a live service lives in `tests/integration/`, and `tests/unit/test_test_layout.py` fails the build if such a module is not marked. |
 | **D4** Non-root, minimal, healthchecked container `[infra]` | PASS | Multi-stage build, `USER appuser` (uid 10001), `HEALTHCHECK` on `/healthz`, no build tools in the runtime stage, `.dockerignore` keeps tests, docs and env files out. |
 | **D5** Deploy-time residency/sovereignty, parameterised `[infra]` | PASS | `infra/terraform/` enforces the posture rather than describing it: residency validated at plan time against an allowlist that defaults to the rendered region (`variables.tf`, `naming.tf`, `render.tf.json`), Org Policy resource-location, service-account-key and uniform-bucket constraints (`org_policy.tf`), a REGIONAL CMEK ring with per-service-agent bindings (`kms.tf`), one least-privilege serving identity (`iam.tf`), a locked WORM log bucket plus sink with DATA_READ auditing (`logging_worm.tf`), five security metrics and alert policies (`monitoring.tf`), a dry-run-first VPC-SC perimeter (`vpc_sc.tf`) and an opt-in Cloud Run edge behind IAP and Cloud Armor (`production_edge.tf`). The claims are CHECKED, not asserted in comments: `production_edge.tftest.hcl` runs fourteen plan-only `mock_provider` runs, nine of them refusals, including that the WORM sink names the same log the managed audit adapter writes. The `terraform` job in the hosted GitHub Actions check runs `init -backend=false`, `validate`, `fmt -check -recursive` and `test` with no credentials; `make tf-check` is the same four commands locally. This vertical's own data-plane resources remain per-repo. |
-| **E1** Offline eval smoke guards merge; Hrz4 owns promotion `[agentic]` **(load-bearing)** | PASS | `eval/run_eval.py --mode smoke\|gate`; smoke runs in the gate, gate mode routes to Hrz4 and refuses to run off the managed profile. |
+| **E1** Offline eval smoke guards merge; `model-quality-gate` owns promotion `[agentic]` **(load-bearing)** | PASS | `eval/run_eval.py --mode smoke\|gate`; smoke runs in the gate, gate mode routes to `model-quality-gate` and refuses to run off the managed profile. |
 | **E2** Safety metric with strictest threshold, no false green `[agentic]` | PASS | `pii_safety >= 0.99` scored two ways (the shared pack scan plus an independent planted-literal oracle); `test_not_falsely_green.py` proves it can go red. |
 | **E3** Fixtures and golden data obviously fictional `[all]` | PASS | The golden set uses obviously fictional parties and `.example` domains. |
 | **F1** Demo is code, offline, one command, presenter-paced `[all]` | PASS | `make demo` is one command: `scripts/walkthrough.py` starts its own loopback server, narrates each of the eight steps on the terminal (never on the page) and waits for the presenter. Everything runs offline with the stdlib alone, driving the REAL services; `scripts/render_ui.py` renders the same audit-first panels to static HTML for screenshots. |

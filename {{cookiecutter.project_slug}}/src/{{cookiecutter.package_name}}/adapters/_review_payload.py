@@ -3,8 +3,9 @@
 Lives in the adapter layer, not the pure domain, because it depends on the kit. The subject,
 summary and every citation snippet are redacted BEFORE they leave the process (the same
 redact-before-anything rule the audit write obeys), using the shared ``pii-kit``, so no raw
-identifier reaches Hrz7 over the wire; Hrz7 redacts again before its own audit write (defence in
-depth). ``maker`` and ``tenant`` are asserted here and trusted by Hrz7 because the caller is an
+identifier reaches human-review-console over the wire; the console redacts again before its
+own audit write (defence in depth). ``maker`` and ``tenant`` are asserted here and trusted
+there because the caller is an
 authenticated S2S service; per-hop on-behalf-of token exchange is the deferred next layer.
 """
 
@@ -61,7 +62,7 @@ def _kit_citations(result: TriageResult) -> tuple[KitCitation, ...]:
 
 
 def result_to_review(result: TriageResult, *, maker: str, tenant: str = "") -> Review:
-    """Build the review a producer submits to Hrz7 when a result escalates."""
+    """Build the review a producer submits to human-review-console when a result escalates."""
     return Review(
         action="{{ cookiecutter.package_name }}:triage",
         subject=_redact(result.subject),
@@ -73,6 +74,6 @@ def result_to_review(result: TriageResult, *, maker: str, tenant: str = "") -> R
         sod_group="{{ cookiecutter.package_name }}-maker-checker",
         case_ref=result.subject,
         # Producer-owned, tenant-scoped key so a retried delivery is idempotent at the console.
-        source_key=f"{{ cookiecutter.catalog_id }}:{result.subject}:{result.severity.value}",
+        source_key=f"{{ cookiecutter.project_slug }}:{result.subject}:{result.severity.value}",
         citations=_kit_citations(result),
     )

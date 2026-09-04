@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Evaluation gate for {{ cookiecutter.friendly_name }} ({{ cookiecutter.catalog_id }}).
+"""Evaluation gate for {{ cookiecutter.friendly_name }}.
 
 Two named layers via ``--mode`` (the scaffold is ``agent_eval_kit.eval_main``):
 
 * **smoke** (default) - the offline pre-merge check CI runs on every change: it drives the real
   ``TriageService`` against a golden set with SDK-free local adapters and scores two metrics.
-* **gate** - the promotion verdict from the shared Hrz4 authority (requires the ``gcp``
+* **gate** - the promotion verdict from the shared model-quality-gate authority (needs the ``gcp``
   profile), resolved through the container's ``EvaluationGatePort`` so the authority is a
   binding like every other port rather than a client constructed here.
 
@@ -119,6 +119,6 @@ if __name__ == "__main__":
             smoke=run_smoke,
             gate=run_gate,
             default_dataset=DEFAULT_DATASET,
-            description="Offline / Hrz4 evaluation gate for {{ cookiecutter.catalog_id }}.",
+            description="Offline and managed evaluation gate for {{ cookiecutter.project_slug }}.",
         )
     )

@@ -8,7 +8,7 @@ here. Read it first. This file carries only what is specific to this one.
 ## What this is
 
 `hex-service-template` is a reusable CI
-workflow + a cookiecutter template that starts a new hexagonal agent repo at Doc1 parity.
+workflow + a cookiecutter template that starts a new hexagonal agent repo at `cdd-sow-research` parity.
 Siblings: `pii-kit`, `hex-service-kit`, `agent-eval-kit`.
 
 ## Layout
@@ -17,7 +17,7 @@ Siblings: `pii-kit`, `hex-service-kit`, `agent-eval-kit`.
   since 2026-09-02, and each repository's caller is rendered from the reviewed job contract in
   `org-metadata`, never authored in the repository. See README section 1.
 - `cookiecutter.json` declares the variables (`friendly_name`, `project_slug`, `package_name`,
-  `catalog_id`, `description`, `env_prefix`, `region`, and a PAIR per commons package: a version
+  `description`, `env_prefix`, `region`, and a PAIR per commons package: a version
   variable naming the release TAG that `pyproject.toml` declares, and a commit variable carrying
   the 40-character COMMIT that tag resolves to, which is what the lockfiles pin. The four pairs
   are `commons_version`/`commons_commit` for `hex-service-kit`,
@@ -40,7 +40,7 @@ Siblings: `pii-kit`, `hex-service-kit`, `agent-eval-kit`.
 - `{{cookiecutter.project_slug}}/infra/terraform/render.tf.json` is the ONE Terraform file
   cookiecutter renders, and the reason the rest can be copied verbatim. It is JSON so it can hold
   no interpolation at all, and it carries four locals (`render_region`, `render_package_name`,
-  `render_env_prefix`, `render_catalog_id`) whose shapes the pre-gen hook already validates, so a
+  `render_env_prefix`, `render_repository`) whose shapes the pre-gen hook already validates, so a
   render can break neither the JSON nor the HCL. `naming.tf` derives every name from them. A
   `*.tf` glob cannot match `.tf.json`, which is what keeps the split clean;
   `terraform.tfvars.example` renders too, and is the only other file there that may carry Jinja.
@@ -109,7 +109,7 @@ never mistaken for a real repo.
   gets no trigger and no required check with nothing reporting the omission. Changing what the
   gate DOES is a change to the runner and the policy, not to N per-repo files.
 - **Rule R8 is wired, not documented.** The rendered service routes every escalated result to the
-  Hrz7 console through `review-kit`, in the same request that produced it, with a
+  `human-review-console` through `review-kit`, in the same request that produced it, with a
   `ReviewRouterPort` bound in all three families. A local adapter that silently did nothing would
   let 31 repos ship with R8 unwired and a green gate, so the local binding uses the kit's outbox
   and `tests/test_review_routing.py` asserts the routing, not the flag.
@@ -130,7 +130,7 @@ never mistaken for a real repo.
      literal.** `_ROUTING_ACTOR`, `_APP_TITLE`, `_APP_DESCRIPTION`. `ruff format` cannot wrap a
      string literal for you.
 - **The bound is enforced, not assumed.** `hooks/pre_gen_project.py` refuses a render whose
-  `project_slug` / `package_name` / `env_prefix` / `catalog_id` / `friendly_name` / `region` /
+  `project_slug` / `package_name` / `env_prefix` / `friendly_name` / `region` /
   `description` is longer than the `max` matrix row, or the wrong shape. "Any valid name renders
   green" is only testable with a stated boundary: a 300 character package name breaks any import
   line ever written. `verify-render.sh` fails if `MAX_LENGTHS` and the `max` row ever disagree,

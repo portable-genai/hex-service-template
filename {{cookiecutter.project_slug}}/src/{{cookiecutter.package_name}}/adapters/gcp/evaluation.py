@@ -1,6 +1,7 @@
-"""Managed EvaluationGatePort: the Hrz4 promotion authority over HTTP.
+"""Managed EvaluationGatePort: the model-quality-gate promotion authority over HTTP.
 
-Hrz4 owns the promotion verdict for the whole catalog (it is the E1/E2 gate owner), so this
+model-quality-gate owns the promotion verdict for the whole catalog (it is the E1/E2 gate
+owner), so this
 adapter asks rather than decides. It carries no thresholds of its own: a repo that scored itself
 and promoted itself would be a gate in name only.
 
@@ -16,19 +17,19 @@ from hex_service_kit.netdefaults import ConfiguredEmptyError, read_env_setting
 
 from ...config import Settings
 
-#: Bundle name Hrz4 selects this repo's registered metric set by. A rendered value, so it lives
-#: in a module constant: inline it would make the line length depend on the project slug.
+#: Bundle name model-quality-gate selects this repo's registered metric set by. A rendered value, so
+#: it lives in a module constant: inline it would make the line length depend on the project slug.
 _BUNDLE = "{{ cookiecutter.project_slug }}"
 _QUALITY_URL_ENV = "{{ cookiecutter.env_prefix }}_QUALITY_URL"
 _DEFAULT_QUALITY_URL = "http://localhost:8084"
-#: The model the verdict is recorded AGAINST. Hrz4 keys a promotion to the exact model and
-#: prompt version that produced the evidence, so a model swap invalidates the old verdict
-#: rather than inheriting it. Change this in the same commit that changes the model.
+#: The model the verdict is recorded AGAINST. model-quality-gate keys a promotion to the exact model
+#: and prompt version that produced the evidence, so a model swap invalidates the old verdict rather
+#: than inheriting it. Change this in the same commit that changes the model.
 _GATED_MODEL = "gemini-3.5-flash"
 
 
 class ManagedEvalGateAdapter:
-    """Delegates evaluation and promotion to the Hrz4 AI-quality service."""
+    """Delegates evaluation and promotion to the model-quality-gate AI-quality service."""
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
@@ -43,7 +44,8 @@ class ManagedEvalGateAdapter:
             if setting.is_configured_empty:
                 raise ConfiguredEmptyError(
                     f"{_QUALITY_URL_ENV} is set but empty, so no promotion authority is named. "
-                    f"Unset it to use {_DEFAULT_QUALITY_URL}, or give it the Hrz4 service URL."
+                    f"Unset it to use {_DEFAULT_QUALITY_URL}, or give it the "
+                    "model-quality-gate service URL."
                 )
             url = setting.value or _DEFAULT_QUALITY_URL
             self._client = PromotionGateClient(url, bundle=_BUNDLE, model=_GATED_MODEL)

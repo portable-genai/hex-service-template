@@ -73,7 +73,7 @@ def loaded_cloud_sdks() -> tuple[str, ...]:
 
 #: Rendered identity, bound once so no other line's length depends on how long a name is.
 SERVICE_NAME = "{{ cookiecutter.friendly_name }}"
-CATALOG_ID = "{{ cookiecutter.catalog_id }}"
+REPOSITORY = "{{ cookiecutter.project_slug }}"
 REPOSITORY = "{{ cookiecutter.project_slug }}"
 
 # --------------------------------------------------------------------------------------- #
@@ -332,7 +332,7 @@ class DemoRun:
             title="Deployment",
             rows=(
                 Row("Service", SERVICE_NAME),
-                Row("Catalog id", CATALOG_ID),
+                Row("Repository", REPOSITORY),
                 Row("Profile", self.settings.profile, "ok"),
                 Row("Profiles bound for every port", ", ".join(profiles)),
                 Row("Residency region", self.settings.region),
@@ -653,7 +653,7 @@ class DemoRun:
         current = self.results[-1]
         return {
             "service": SERVICE_NAME,
-            "catalog_id": CATALOG_ID,
+            "repository": REPOSITORY,
             "repository": REPOSITORY,
             "profile": self.settings.profile,
             "region": self.settings.region,

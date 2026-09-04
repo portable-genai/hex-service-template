@@ -35,11 +35,11 @@ trap 'rm -rf "$WORK"' EXIT
 
 # ---------------------------------------------------------------------------------------- #
 # The render matrix. Fields, `|` separated:
-#   label | project_slug | package_name | env_prefix | catalog_id | friendly_name | region |
+#   label | project_slug | package_name | env_prefix | friendly_name | region |
 #   description
 #
 # EVERY rendered variable is here, not only the three that were caught failing, because the
-# defect class is "a rendered value lengthens a line", and `friendly_name` + `catalog_id` share
+# defect class is "a rendered value lengthens a line", and `friendly_name` owns
 # the tightest line in the tree (a module docstring's summary) while `description` owns a whole
 # line of its own in `src/<package>/__init__.py`.
 #
@@ -48,10 +48,10 @@ trap 'rm -rf "$WORK"' EXIT
 # Raising a limit there without lengthening this row turns a proof into a guess.
 # ---------------------------------------------------------------------------------------- #
 MATRIX=(
-  "short|svc-a|a|A|S1|A|a|D"
-  "default|svc-example-agent|example_agent|EXAMPLE|Svc1|Example Triage Agent|asia-southeast1|A grounded, audited triage agent scaffolded at Doc1 parity from the catalog commons."
-  "refuted|svc-bravo-considerably-longer-named-gate-agent|bravo_considerably_longer_named_gate_agent|BRAVOCONSIDERABLYLONGERPREFIX|Svc9|Bravo Longer Named Gate Agent|asia-southeast1|The exact name set that rendered red before the matrix existed."
-  "max|svc-maximum-length-boundary-probe-agent-for-the-render-gate-xyz|maximum_length_boundary_probe_agent_for_the_gate|MAXIMUMLENGTHBOUNDARYPROBEENVXYZ|Svc1Xmax|Maximum Length Boundary Probe Rendering Agent XY|asia-southeast1-probe-xy|A grounded, audited triage agent scaffolded at Doc1 parity from the catalog commons, at lengths."
+  "short|svc-a|a|A|A|a|D"
+  "default|svc-example-agent|example_agent|EXAMPLE|Example Triage Agent|asia-southeast1|A grounded, audited triage agent scaffolded at cdd-sow-research parity from the catalog commons."
+  "refuted|svc-bravo-considerably-longer-named-gate-agent|bravo_considerably_longer_named_gate_agent|BRAVOCONSIDERABLYLONGERPREFIX|Bravo Longer Named Gate Agent|asia-southeast1|The exact name set that rendered red before the matrix existed."
+  "max|svc-maximum-length-boundary-probe-agent-for-the-render-gate-xyz|maximum_length_boundary_probe_agent_for_the_gate|MAXIMUMLENGTHBOUNDARYPROBEENVXYZ|Maximum Length Boundary Probe Rendering Agent XY|asia-southeast1-probe-xy|A grounded, audited triage agent scaffolded at cdd-sow-research parity from the catalog commons, at lengths."
 )
 
 WANTED="${1:-}"
@@ -113,12 +113,12 @@ assert_the_pytest_assertion_can_fail() {
 }
 
 verify_one_render() {
-  local label="$1" slug="$2" pkg="$3" prefix="$4" catalog="$5" friendly="$6" \
-        region="$7" description="$8"
+  local label="$1" slug="$2" pkg="$3" prefix="$4" friendly="$5" \
+        region="$6" description="$7"
 
   echo
   echo "#################################################################################"
-  echo "## MATRIX ROW '$label': slug=${#slug} pkg=${#pkg} prefix=${#prefix} catalog=${#catalog}"
+  echo "## MATRIX ROW '$label': slug=${#slug} pkg=${#pkg} prefix=${#prefix}"
   echo "##   friendly=${#friendly} region=${#region} description=${#description} characters"
   echo "##   $slug / $pkg / $prefix"
   echo "#################################################################################"
@@ -128,7 +128,7 @@ verify_one_render() {
   echo "== rendering template to $out =="
   uvx --from cookiecutter cookiecutter --no-input -o "$out" "$HERE" \
     project_slug="$slug" package_name="$pkg" env_prefix="$prefix" \
-    catalog_id="$catalog" friendly_name="$friendly" region="$region" \
+    friendly_name="$friendly" region="$region" \
     description="$description"
 
   local dir="$out/$slug"
@@ -265,19 +265,19 @@ verify_one_render() {
 # hook is promising something this gate never observed. Check it here rather than trusting a
 # comment: a limit is raised in the hook far more often than the matrix row is lengthened.
 assert_max_row_matches_the_hook() {
-  local row label slug pkg prefix catalog friendly region description
+  local row label slug pkg prefix friendly region description
   for row in "${MATRIX[@]}"; do
-    IFS='|' read -r label slug pkg prefix catalog friendly region description <<<"$row"
+    IFS='|' read -r label slug pkg prefix friendly region description <<<"$row"
     [ "$label" = "max" ] && break
   done
-  python3 - "$slug" "$pkg" "$prefix" "$catalog" "$friendly" "$region" "$description" <<'PY'
+  python3 - "$slug" "$pkg" "$prefix" "$friendly" "$region" "$description" <<'PY'
 import re, sys, pathlib
-slug, pkg, prefix, catalog, friendly, region, description = sys.argv[1:8]
+slug, pkg, prefix, friendly, region, description = sys.argv[1:7]
 text = pathlib.Path("hooks/pre_gen_project.py").read_text()
 block = re.search(r"MAX_LENGTHS = \{(.*?)\}", text, re.S).group(1)
 limits = {k: int(v) for k, v in re.findall(r'"(\w+)":\s*(\d+)', block)}
 actual = {"project_slug": len(slug), "package_name": len(pkg),
-          "env_prefix": len(prefix), "catalog_id": len(catalog),
+          "env_prefix": len(prefix),
           "friendly_name": len(friendly), "region": len(region),
           "description": len(description)}
 missing = sorted(set(limits) - set(actual)) + sorted(set(actual) - set(limits))
@@ -304,11 +304,11 @@ assert_max_row_matches_the_hook
 
 ran=0
 for row in "${MATRIX[@]}"; do
-  IFS='|' read -r label slug pkg prefix catalog friendly region description <<<"$row"
+  IFS='|' read -r label slug pkg prefix friendly region description <<<"$row"
   if [ -n "$WANTED" ] && [ "$WANTED" != "$label" ]; then
     continue
   fi
-  verify_one_render "$label" "$slug" "$pkg" "$prefix" "$catalog" "$friendly" \
+  verify_one_render "$label" "$slug" "$pkg" "$prefix" "$friendly" \
     "$region" "$description"
   ran=$((ran + 1))
 done
