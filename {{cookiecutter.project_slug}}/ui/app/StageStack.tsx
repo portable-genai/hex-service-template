@@ -47,7 +47,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { activeStage, isDriven, withTakeover } from "../lib/stages.mjs";
+import { activeStage, isDriven, isReaderToggle, withTakeover } from "../lib/stages.mjs";
 
 // Re-exported so a page imports the stack and its rule from one place; the rule itself
 // lives in lib/stages.mjs where the gate can test it without a renderer.
@@ -72,12 +72,21 @@ export interface StageProps {
 
 export function Stage({ id, summary, active, onTakeOver, taken, children }: StageProps) {
   const ref = useRef<HTMLDetailsElement>(null);
+  // The last openness this component wrote. <details> fires `toggle` for a programmatic
+  // write exactly as it does for a click, so without this the stack reads its own writes as
+  // reader intent, marks every stage taken the moment it first opens one, and then never
+  // collapses anything again. See isReaderToggle in lib/stages.mjs.
+  const wrote = useRef<boolean | null>(null);
+
   // `active` drives the element directly rather than through React state: <details> owns its
   // own openness natively, and mirroring it into state means two sources of truth that
   // disagree the moment a reader clicks. Once `taken`, nothing here writes to it again.
   useEffect(() => {
     const el = ref.current;
-    if (el && isDriven(id, taken ?? EMPTY)) el.open = active;
+    if (el && isDriven(id, taken ?? EMPTY)) {
+      wrote.current = active;
+      el.open = active;
+    }
   }, [active, taken, id]);
 
   // A print must never be a screenshot of what happened to be collapsed. Opening every
@@ -107,7 +116,14 @@ export function Stage({ id, summary, active, onTakeOver, taken, children }: Stag
       ref={ref}
       data-stage={id}
       className="group rounded-xl border border-ink-200 bg-white shadow-panel"
-      onToggle={() => onTakeOver?.(id)}
+      onToggle={(event) => {
+        // Only THIS element's toggles, and only ones the stack did not cause. The target
+        // check matters as soon as anything inside a stage uses <details> of its own (an
+        // evidence drill-down, a disclosure), because React delivers those toggles to this
+        // handler too; without it, opening one would freeze the stage that contains it.
+        if (event.target !== ref.current || !ref.current) return;
+        if (isReaderToggle(ref.current.open, wrote.current)) onTakeOver?.(id);
+      }}
     >
       <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm text-ink-700 [&::-webkit-details-marker]:hidden">
         <span

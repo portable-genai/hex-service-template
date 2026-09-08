@@ -11,7 +11,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { activeStage, isDriven, withTakeover } from "../lib/stages.mjs";
+import { activeStage, isDriven, isReaderToggle, withTakeover } from "../lib/stages.mjs";
 
 // --------------------------------------------------------------------------- //
 // activeStage: the newest content is the focus
@@ -90,4 +90,41 @@ test("taking over a new stage returns a new set and keeps the old entries", () =
   const second = withTakeover(first, "result");
   assert.notEqual(second, first);
   assert.deepEqual([...second].sort(), ["inputs", "result"]);
+});
+
+// --------------------------------------------------------------------------- //
+// isReaderToggle: the stack must not read its own writes as reader intent
+// --------------------------------------------------------------------------- //
+// This block exists because the first version of the stage stack shipped without it and
+// did nothing at all: <details> fires `toggle` for a programmatic `el.open = x` just as it
+// does for a click, so the stack marked each stage taken the instant it first opened one,
+// and then never collapsed anything. The console looked exactly as it had before.
+test("a toggle that matches what the stack wrote is the stack's own echo, not the reader", () => {
+  assert.equal(isReaderToggle(true, true), false);
+  assert.equal(isReaderToggle(false, false), false);
+});
+
+test("a toggle that disagrees with what the stack wrote is the reader", () => {
+  // The stack opened it and it is now closed: somebody closed it.
+  assert.equal(isReaderToggle(false, true), true);
+  // The stack collapsed it and it is now open: somebody opened it.
+  assert.equal(isReaderToggle(true, false), true);
+});
+
+test("a toggle before the stack has written anything is the reader", () => {
+  // No write to attribute it to, so it can only have come from a hand on the mouse.
+  assert.equal(isReaderToggle(true, null), true);
+  assert.equal(isReaderToggle(false, null), true);
+});
+
+test("the open-collapse-open cycle a stack drives never registers as a takeover", () => {
+  // Walk the real sequence: the inputs stage opens, the result arrives, inputs collapse.
+  let taken = new Set();
+  const drive = (open, expected) => {
+    if (isReaderToggle(open, expected)) taken = withTakeover(taken, "inputs");
+  };
+  drive(true, true); // stage opens under the stack
+  drive(false, false); // stage collapses under the stack
+  assert.equal(taken.size, 0);
+  assert.equal(isDriven("inputs", taken), true);
 });

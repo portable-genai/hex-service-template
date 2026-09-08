@@ -47,6 +47,28 @@ export function isDriven(id, taken) {
 }
 
 /**
+ * Whether a `toggle` event was the READER's doing, rather than the stack's own write.
+ *
+ * `<details>` fires `toggle` for a programmatic `el.open = x` exactly as it does for a
+ * click, so a stack that treats every toggle as a takeover takes its own writes for reader
+ * intent: the first stage to open marks itself taken, and then nothing ever collapses. That
+ * is not hypothetical — it is what this component did on its first run, and the symptom was
+ * the bug it was written to fix, still present and now with more code behind it.
+ *
+ * The test is "did the element land where the last write put it". `expected` is the value
+ * the stack wrote; a toggle that agrees with it is an echo of that write, and anything else
+ * is a hand on the mouse. Comparing against `expected` rather than against `active` matters
+ * because `toggle` is delivered asynchronously, and `active` may have moved on by then.
+ *
+ * @param {boolean} open the element's state now
+ * @param {boolean|null} expected the last value the stack wrote, or null if it never wrote
+ * @returns {boolean} true when the reader toggled it
+ */
+export function isReaderToggle(open, expected) {
+  return expected === null || open !== expected;
+}
+
+/**
  * Add a stage to the taken-over set, preserving referential identity when it is already in.
  *
  * Returning the SAME set when nothing changed is what stops a React state update, and with
