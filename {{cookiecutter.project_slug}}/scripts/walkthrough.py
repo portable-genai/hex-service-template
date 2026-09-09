@@ -157,6 +157,37 @@ def _check_portability(state: dict[str, Any]) -> list[str]:
     return problems
 
 
+def _check_eval(state: dict[str, Any]) -> list[str]:
+    """The demo showed a gate. Assert it was a real one, not a rendered table of numbers.
+
+    Three things have to be true together, and each of them is a way this step could look
+    convincing while proving nothing: every metric actually cleared its own reviewed bar, the
+    corpus was not empty, and each metric was demonstrated FAILING its planted defect. The last
+    is the one worth asserting: a table of green numbers is what a broken scorer produces too.
+    """
+    facts = _facts(state)
+    problems: list[str] = []
+    metrics = facts.get("metrics") or {}
+    thresholds = facts.get("thresholds") or {}
+    if not metrics:
+        problems.append("the eval step scored no metric at all")
+    for metric, score in metrics.items():
+        bar = thresholds.get(metric)
+        if bar is None:
+            problems.append("metric with no reviewed bar: " + metric)
+        elif score < bar:
+            problems.append(f"{metric} scored {score} below its bar {bar}")
+    if not facts.get("n_examples"):
+        problems.append("the gate reported no examples, so it certified nothing")
+    if not facts.get("passed"):
+        problems.append("the gate did not pass")
+    proved = set(facts.get("proved_red") or [])
+    if proved != set(metrics):
+        unproved = sorted(set(metrics) - proved)
+        problems.append("metrics shown green without a red case: " + str(unproved))
+    return problems
+
+
 #: One entry per step key, in the demo's order. A step added to ``demo.STEPS`` without a check
 #: here fails the walkthrough immediately, so the arc and its assertions cannot drift.
 CHECKS: dict[str, Check] = {
@@ -167,6 +198,7 @@ CHECKS: dict[str, Check] = {
     "review_queue": _check_review_queue,
     "audit": _check_audit,
     "tamper": _check_tamper,
+    "eval": _check_eval,
     "portability": _check_portability,
 }
 

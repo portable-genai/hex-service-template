@@ -180,6 +180,15 @@ verify_one_render() {
   echo "== pytest =="; pytest -m 'not integration'
   echo "== eval (offline smoke) =="; python eval/run_eval.py
 
+  # The other two halves of the rendered gate, by name, for the same reason as `make lint`
+  # above: both are in `make gate`, and both are the kind of thing that is red on arrival
+  # without anybody noticing. The judged half needs no model server and no network, and it
+  # refuses its own table before grading anything; the doc check fails when the generated page
+  # and the artifacts it describes disagree, which is exactly the state a freshly rendered repo
+  # would be in if the renderer were broken.
+  echo "== eval-narrative (judged, offline) =="; python eval/run_narrative_eval.py
+  echo "== evals-doc --check =="; python scripts/render_evals_doc.py --check
+
   # The refutations this template was rebuilt to close, both of them a rendered repo serving a
   # real result (and honouring X-Dev-Persona) to a LAN peer with NO credential: first with the
   # profile variable ABSENT and the S2S token set, then with the profile chosen DELIBERATELY as

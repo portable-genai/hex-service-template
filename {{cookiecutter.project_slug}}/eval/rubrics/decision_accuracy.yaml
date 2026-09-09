@@ -1,0 +1,33 @@
+# Scored by: eval/run_eval.py::run_smoke against the GOLDEN SET'S own expected_severity, which a
+# reviewer wrote by reading each case, never against the service's own verdict. A metric that
+# compared the engine with itself would be a tautology with a threshold.
+#
+# Replace this bar, and this reasoning, with your own. What must not change is that the number
+# lives HERE rather than in a Python dict: a bar written as a module constant carries no
+# argument, so a reviewer can read that accuracy must clear 0.80 and cannot read why, who agreed
+# it, or what moving it would mean.
+metric: decision_accuracy
+description: >
+  Fraction of golden cases whose triaged severity equals the severity a reviewer assigned by
+  reading the case.
+threshold: 0.80
+direction: maximize
+applies_to:
+  - EvalReport.results[decision_accuracy]
+criteria:
+  - id: severity_matches
+    description: The service's severity equals the reviewer's expected_severity.
+    weight: 1.0
+scoring:
+  scale: [0.0, 1.0]
+  pass_if: "score >= threshold"
+# The denominator rule (agent_eval_kit.denominators): a 0.80 bar tolerates one miss only over at
+# least five scored cases. `run_smoke` asserts this against the corpus it is about to score, so
+# growing the bar without growing the corpus fails the build rather than quietly becoming a 1.0.
+denominator:
+  # `rate` means the score is a FRACTION over scored cases, so the denominator rule applies:
+  # a threshold t tolerates one miss only over at least 1/(1-t) cases, and below that the bar is
+  # arithmetically identical to 1.0. See agent_eval_kit.denominators.
+  kind: rate
+  note: >
+    A 0.80 bar over four cases is a 1.0 wearing a 0.80 label: three of four is 0.75 and fails.

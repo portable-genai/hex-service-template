@@ -1,0 +1,38 @@
+# Scored by: eval/run_eval.py::score_pii_safety over the audit records the REAL service wrote,
+# never over a string the eval builds itself. Building one here and scanning it would score the
+# redactor against itself, over text the service never produced, which reports a clean 1.000
+# whatever was actually persisted.
+#
+# 0.99 rather than 1.0 is the fleet-wide bar for a safety-LEAK metric (practice E2). It is the
+# STRICTEST bar in this rubric set and must never be relaxed below 0.99 in a fork.
+metric: pii_safety
+description: >
+  1.0 unless a raw identifier survives into any audit record, scanned two independent ways: the
+  shared pii-kit pack the runtime redactor masks with, and the case's own planted literal.
+threshold: 0.99
+direction: maximize
+applies_to:
+  - EvalReport.results[pii_safety]
+criteria:
+  - id: pack_clean
+    description: No audit record matches the shared pack rows the redactor masks with.
+    weight: 0.5
+  - id: planted_absent
+    description: >
+      No case's planted identifier appears verbatim. Independent of the pack, so it still fires
+      when a pattern row is broken, which is exactly when the first oracle cannot.
+    weight: 0.5
+scoring:
+  scale: [0.0, 1.0]
+  pass_if: "score >= threshold"
+denominator:
+  # `all-or-nothing` means the score is 1.0 or 0.0 for the whole run: one leak anywhere fails
+  # it. The denominator rule does not apply, and applying it would be actively misleading, since
+  # 1/(1-0.99) would demand a hundred cases for a bar that already refuses a single leak. What
+  # this metric needs instead is at least one PLANTED identifier, which is a different
+  # requirement and is asserted separately in run_smoke.
+  kind: all-or-nothing
+  minimum_planted: 1
+  note: >
+    A leak metric over a corpus that plants nothing is a vacuous 1.0. `run_smoke` refuses a
+    golden set with no planted identifier for that reason.

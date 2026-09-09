@@ -1,4 +1,5 @@
-.PHONY: install install-unlocked lock lint fmt test test-integration eval plugin gate audit run-api \
+.PHONY: install install-unlocked lock lint fmt test test-integration eval eval-narrative \
+	evals-doc evals-doc-check record-fixtures plugin gate audit run-api \
         demo demo-selftest demo-static demo-server portability docs-check tf-check \
         ui-install ui-check ui-dev drop-ui
 
@@ -58,8 +59,29 @@ test:
 test-integration:
 	pytest -m integration
 
+# The deterministic half: rules, over a golden set whose expectations a reviewer wrote.
 eval:
 	python eval/run_eval.py
+
+# The judged half: is the narrative any good, banded against the model-risk floors in
+# config/quality-floors.toml. OFFLINE by default, so it runs in the gate with no model server,
+# no credentials and no network. `--judge local-model` opts in to a served judge, outside CI.
+eval-narrative:
+	python eval/run_narrative_eval.py
+
+# docs/evals.md states the metrics, bars, cases and floors. Generated from the artifacts that
+# gate the build, so the page cannot drift from what runs.
+evals-doc:
+	python scripts/render_evals_doc.py
+
+evals-doc-check:
+	python scripts/render_evals_doc.py --check
+
+# The authoring step that is neither offline nor free, and the ONLY one. It needs the managed
+# profile and real credentials, makes real model calls, and writes the recording the eval
+# replays offline forever after. Run it by hand, read the diff, commit the result.
+record-fixtures:
+	python scripts/record_model_fixtures.py
 
 # Render the Agent Plugins 1.0.0 directory from what this repo already declares. Skills and an
 # MCP server are both detected rather than assumed, so this works from generation onward: a
@@ -71,7 +93,7 @@ plugin:
 # no-egress environment; the dependency audit needs a vulnerability feed and therefore lives in
 # `make audit` locally and in the hard-gate workflow's supply-chain job, where it is a HARD
 # failure, not an advisory one.
-gate: lint test eval plugin
+gate: lint test eval eval-narrative evals-doc-check plugin
 
 # The supply-chain half of the gate (needs network). CI runs the same two commands.
 audit:
