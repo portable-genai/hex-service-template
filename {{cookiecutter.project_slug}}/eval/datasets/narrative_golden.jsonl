@@ -1,0 +1,16 @@
+# The degradation table. One row per case, each written once PER PROFILE, with the band each is
+# expected to land in against this vertical's floor in config/quality-floors.toml.
+#
+# Why a table and not a threshold: a threshold only catches a profile getting worse. A table also
+# catches one getting BETTER, and a band nobody predicted is a change nobody reviewed. Recalibrate
+# it in the same commit as whatever moved it.
+#
+# `regressed` is the deliberate control and must be expected "unfit" in every row: it is the
+# defect the floor exists to refuse, and a table where it passes has a floor that refuses nothing.
+# The runner checks that, plus that some row expects "degraded", BEFORE grading anything.
+#
+# `criteria` are data, and each must demand at least one of must_cover / must_cite / must_not_say:
+# a criterion nothing can violate scores a constant 1.0 forever and is refused at construction.
+# All parties are obviously fictional.
+{"id": "triage-breach", "vertical": "{{ cookiecutter.project_slug }}", "subject": "Gamma LLP (FICTIONAL)", "criteria": [{"name": "conveys_the_finding", "must_cover": ["data breach reported", "urgent review needed"], "must_cite": ["c3"], "must_not_say": ["no action required", "guaranteed"]}], "candidates": {"managed": "A data breach reported by Gamma LLP (FICTIONAL) needs urgent review. Case c3 carries the client's own account of the incident; the identifier in it has been masked.", "reduced": "A data breach reported by the client. See case c3.", "regressed": "No action required at this time."}, "expected": {"managed": "fit", "reduced": "degraded", "regressed": "unfit"}}
+{"id": "triage-routine", "vertical": "{{ cookiecutter.project_slug }}", "subject": "Delta Co (FICTIONAL)", "criteria": [{"name": "stays_proportionate", "must_cover": ["general inquiry about account status", "no issues noted"], "must_cite": ["c4"], "must_not_say": ["critical", "escalate immediately"]}], "candidates": {"managed": "Delta Co (FICTIONAL) raised a general inquiry about account status, with no issues noted in case c4.", "reduced": "A general inquiry about account status. See c4.", "regressed": "Critical: escalate immediately."}, "expected": {"managed": "fit", "reduced": "degraded", "regressed": "unfit"}}

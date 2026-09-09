@@ -167,7 +167,7 @@ assertion, and this UI discards those.
 
 A console that shows its evidence honestly gets tall: inputs, then the arithmetic over them,
 then whatever was generated. By the time the last part arrives, the thing the reader came for
-is below the fold — and embedded in a portal, where the host sets the iframe height, it is
+is below the fold, and embedded in a portal, where the host sets the iframe height, it is
 further down still.
 
 `app/StageStack.tsx` handles that by collapsing what is ABOVE rather than scrolling to what is

@@ -1,0 +1,26 @@
+# Narrative quality floors, per promotion bundle. Owner: model risk.
+#
+# These are the only numbers in this service that say how GOOD a generated narrative has to be,
+# as opposed to whether it was allowed, grounded, cited or safe. Everything else the eval
+# measures is deterministic and binary; this is the half that needs a judge, and a judge needs a
+# bar.
+#
+# Two bars per vertical, and the difference between them is the point:
+#   floor   below this the profile MUST NOT serve this vertical. Not "degraded". Unfit.
+#   target  at or above this the profile is at full quality. Between the two it is DEGRADED:
+#           usable, and visibly worse, which is the band a portability claim describes in
+#           adjectives and which nothing measures until a floor exists.
+#
+# A vertical gets a floor only once it has narrative cases in eval/datasets/narrative_golden.jsonl.
+# A floor with nothing behind it is a number that has never refused anything.
+#
+# Replace the vertical below with your own, and set the bars from what your reviewers accept. A
+# customer-facing surface should carry a HIGHER floor than one a trained employee reads first:
+# nobody stands between a customer-facing reply and a member of the public.
+schema = "quality-floors/v1"
+owner = "model risk (the promotion authority)"
+
+[verticals."{{ cookiecutter.project_slug }}"]
+floor = 0.60
+target = 0.85
+note = "A triage narrative a reviewer reads before anything is acted on."

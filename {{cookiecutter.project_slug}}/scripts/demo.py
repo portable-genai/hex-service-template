@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from agent_eval_kit import required_positives
 from hex_service_kit.audit import HashChainedAuditLog
 from hex_service_kit.identity import RequestContext
 from hex_service_kit.serialization import to_jsonable
@@ -60,6 +61,11 @@ from {{ cookiecutter.package_name }}.domain.pii import (
 from {{ cookiecutter.package_name }}.domain.triage_service import (
     TriageService,
 )
+
+#: The repository root, so the eval step can reach `eval/` without assuming a cwd. The
+#: eval tree is deliberately NOT a package: it is the gate's own code, imported by the
+#: demo so the demo shows the shipped scorers rather than a copy of them.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def loaded_cloud_sdks() -> tuple[str, ...]:
@@ -186,6 +192,16 @@ STEPS: tuple[Step, ...] = (
             "An attacker with file access drops the append-only triggers and rewrites one "
             "record. The store cannot prevent that. The hash chain names the exact record that "
             "broke, which is the honest guarantee: tamper-EVIDENT, not tamper-proof."
+        ),
+    ),
+    Step(
+        key="eval",
+        label="The gate that would catch it: metrics, bars, and their red cases",
+        narration=(
+            "The same scorers the merge gate runs, over the same golden set, in this process. "
+            "Each bar comes from a rubric file that carries the argument for the number, and "
+            "each metric is shown FAILING its planted defect before its green score is shown, "
+            "because a metric nobody proved can fail proves nothing when it passes."
         ),
     ),
     Step(
@@ -548,6 +564,113 @@ class DemoRun:
         )
         facts = {"tampered_seq": target, "detected": detected, "chain_ok": after.ok}
         return [attack, findings, actions], facts
+
+    def _step_eval(self) -> Produced:
+        """Run the SHIPPED eval scorers live, then show each one going red on its own defect.
+
+        Nothing here is pre-baked and nothing is re-implemented for the demo: ``eval.run_eval``
+        is imported and its own ``run_smoke`` produces the numbers, so a scorer that stopped
+        working breaks this step rather than narrating past it.
+
+        The falsification half is the part worth watching. A green metric is only interesting
+        once the same metric has been seen going red on the defect it exists to catch, which is
+        why the red cases run FIRST here and in ``run_eval.py`` alike.
+        """
+        sys.path.insert(0, str(_REPO_ROOT / "eval"))
+        import run_eval  # noqa: PLC0415 - the eval tree is not on the path at module import
+
+        report = run_eval.run_smoke(run_eval.DEFAULT_DATASET)
+        cases = run_eval.load_jsonl(run_eval.DEFAULT_DATASET)
+
+        scores = Panel(
+            title="The merge gate's own scorers, over " + str(len(cases)) + " golden cases",
+            rows=tuple(
+                Row(
+                    result.metric,
+                    f"{result.score:.3f} against a reviewed bar of {result.threshold:g}",
+                    "ok" if result.passed else "bad",
+                )
+                for result in report.results
+            ),
+            note=(
+                "Every bar is read from eval/rubrics/*.yaml, next to the argument for it. A "
+                "metric scored with no reviewed bar fails the build, and so does a bar that "
+                "names no metric: the second is the one that rots quietly, because a rubric for "
+                "a deleted metric still reads as governance."
+            ),
+            tone="ok" if report.passed else "bad",
+        )
+
+        # The red cases, run live. Each raises if its metric can no longer tell the clean case
+        # from the planted defect, so a green row here is evidence rather than a claim.
+        red_rows: list[Row] = []
+        for metric, proof, defect in (
+            (
+                "decision_accuracy",
+                run_eval._prove_decision_accuracy_can_go_red,
+                "the engine reaches a different severity than the reviewer",
+            ),
+            (
+                "pii_safety",
+                run_eval._prove_pii_safety_can_go_red,
+                "a raw national id survives into the audit record",
+            ),
+        ):
+            proof()
+            red_rows.append(Row(metric, "goes RED when " + defect, "ok"))
+        falsification = Panel(
+            title="Each metric, shown failing its own planted defect",
+            rows=tuple(red_rows),
+            note=(
+                "These run as the first statement of the scored run too, not only here and not "
+                "only in the test suite. Run in tests, a proof says the metric could have gone "
+                "red on some machine at some point; run inside the scored run it says the "
+                "metric about to score this corpus can go red, with these thresholds."
+            ),
+            tone="ok",
+        )
+
+        denominators = Panel(
+            title="Can the corpus express the bar it is measured against",
+            rows=tuple(
+                Row(
+                    result.metric,
+                    (
+                        f"needs {required_positives(result.threshold) or 1} cases to tolerate "
+                        f"one miss, has {len(cases)}"
+                    ),
+                    "ok",
+                )
+                for result in report.results
+            ),
+            note=(
+                "A 0.80 bar over four cases is a 1.0 wearing a 0.80 label: three of four is "
+                "0.75 and fails. Nothing else in a repository compares a threshold with a "
+                "corpus size, so the eval asserts it and shrinking the golden set fails the "
+                "build."
+            ),
+        )
+
+        bounds = Panel(
+            title="What this gate does and does not measure",
+            rows=(
+                Row("Measured", "the deterministic decision, against a reviewer's own label"),
+                Row("Measured", "that no raw identifier survives, two independent ways"),
+                Row("NOT measured", "a real model's words: nothing here binds a generation port"),
+                Row("NOT measured", "retrieval quality, and production traffic"),
+            ),
+            note=(
+                "docs/evals.md states this in full and is generated from these same artifacts, "
+                "so it cannot drift from what just ran."
+            ),
+        )
+        return [scores, falsification, denominators, bounds], {
+            "metrics": {r.metric: round(r.score, 4) for r in report.results},
+            "thresholds": {r.metric: r.threshold for r in report.results},
+            "n_examples": report.n_examples,
+            "passed": report.passed,
+            "proved_red": [row.label for row in red_rows],
+        }
 
     def _step_portability(self) -> Produced:
         onprem = build_container(Settings(profile="onprem", tenant=TENANT))
