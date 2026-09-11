@@ -51,7 +51,7 @@ MATRIX=(
   "short|svc-a|a|A|A|a|D"
   "default|svc-example-agent|example_agent|EXAMPLE|Example Triage Agent|asia-southeast1|A grounded, audited triage agent scaffolded at cdd-sow-research parity from the catalog commons."
   "refuted|svc-bravo-considerably-longer-named-gate-agent|bravo_considerably_longer_named_gate_agent|BRAVOCONSIDERABLYLONGERPREFIX|Bravo Longer Named Gate Agent|asia-southeast1|The exact name set that rendered red before the matrix existed."
-  "max|svc-maximum-length-boundary-probe-agent-for-the-render-gate-xyz|maximum_length_boundary_probe_agent_for_the_gate|MAXIMUMLENGTHBOUNDARYPROBEENVXYZ|Maximum Length Boundary Probe Rendering Agent XY|asia-southeast1-probe-xy|A grounded, audited triage agent scaffolded at cdd-sow-research parity from the catalog commons, at lengths."
+  "max|svc-maximum-length-boundary-probe-agent-for-the-render-gate-xyz|maximum_length_boundary_probe_agent_for_the_gate|MAXIMUMLENGTHBOUNDARYPROBEENVXYZ|Maximum Length Boundary Probe Rendering Agent XY|asia-southeast1-probe-xy|A grounded, audited agent scaffolded at cdd-sow-research parity from catalog commons, at length."
 )
 
 WANTED="${1:-}"
