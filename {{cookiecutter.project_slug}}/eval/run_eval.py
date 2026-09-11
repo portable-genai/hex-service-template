@@ -224,6 +224,6 @@ if __name__ == "__main__":
             smoke=run_smoke,
             gate=run_gate,
             default_dataset=DEFAULT_DATASET,
-            description="Offline / promotion gate for {{ cookiecutter.project_slug }}.",
+            description="Offline smoke and promotion evaluation gate.",
         )
     )
