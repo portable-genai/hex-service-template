@@ -2,8 +2,10 @@
 #
 # Two postures are shown. The first is a project-scoped evaluation stack that a caller without
 # org-level roles can apply and later destroy; it is NOT compliant for production and says so.
-# The second is the sovereign posture this repo is written for. Everything not listed here
-# keeps the default in variables.tf, and the defaults are the strict ones.
+# The second is the sovereign posture this repo is written for, and it is the form shown active
+# below. Everything not listed here keeps the default in variables.tf, and the defaults are the
+# strict ones. One value has NO default and therefore has to be here either way: worm_locked.
+# The bucket lock is irreversible, so a plan refuses until this file states it.
 #
 # The state backend is partial (providers.tf). Initialise it with the reviewed bucket:
 #   terraform init -backend-config="bucket=YOUR_STATE_BUCKET" \
@@ -30,15 +32,19 @@ project_id = "fictional-{{ cookiecutter.package_name }}-project" # obviously fic
 
 # ----------------------------------------------------------------------------- #
 # POSTURE A: quick evaluation (project-scoped, no org roles, fully destroyable).
-# NOT a compliant production deployment. Uncomment the three lines together.
+# NOT a compliant production deployment. Uncomment the three lines together, say in a comment
+# why the lock is declined, and remove the worm_locked = true below: the bucket then keeps its
+# sink and its retention, stays destroyable, and may use a short retention_days because the
+# 180-day floor binds only when locked.
 # ----------------------------------------------------------------------------- #
 # enable_org_policies = false
 # enable_vpc_sc       = false
 # worm_locked         = false
 
 # ----------------------------------------------------------------------------- #
-# POSTURE B: sovereign (the defaults). Org policies on, WORM bucket locked, and a
-# VPC-SC perimeter that starts in DRY RUN. Supply the access policy id, apply,
+# POSTURE B: sovereign, and the form shown active here. Org policies on (their
+# default), the WORM bucket LOCKED (stated below, because the lock has no default),
+# and a VPC-SC perimeter that starts in DRY RUN. Supply the access policy id, apply,
 # read the vpc_sc_denials alert for a full business cycle, add the operators, and
 # only then set vpc_sc_enforce = true.
 # ----------------------------------------------------------------------------- #
@@ -49,9 +55,13 @@ operator_members = [
   # "serviceAccount:ci@fictional-{{ cookiecutter.package_name }}-project.iam.gserviceaccount.com",
 ]
 
-# Retention is deliberate because the lock is irreversible. 180 days is the floor.
-retention_days = 180
+# The WORM audit lock (P-07, rule R2). NO default: every deployment names it, because an
+# irreversible control must never arrive because a file said nothing. true is the compliant
+# production posture shown here and is IRREVERSIBLE for the retention window; the 180-day
+# floor below binds only when locked. Confirm retention_days before the first apply: it is the
+# only moment the choice exists.
 worm_locked    = true
+retention_days = 180
 
 alert_notification_channels = [
   # "projects/fictional-{{ cookiecutter.package_name }}-project/notificationChannels/1234567890123456789",

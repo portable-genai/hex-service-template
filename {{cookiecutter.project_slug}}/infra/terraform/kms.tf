@@ -56,7 +56,7 @@ data "google_project" "this" {
   project_id = var.project_id
 }
 
-# Cloud Logging, for the locked WORM audit bucket (logging_worm.tf).
+# Cloud Logging, for the WORM audit bucket (logging_worm.tf).
 resource "google_kms_crypto_key_iam_member" "logging" {
   crypto_key_id = google_kms_crypto_key.cmek.id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
