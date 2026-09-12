@@ -1,4 +1,9 @@
-"""GCP AuditSinkPort: Cloud Logging locked WORM bucket (SDK imports stay lazy)."""
+"""GCP AuditSinkPort: the Cloud Logging WORM bucket (SDK imports stay lazy).
+
+The bucket is Write-Once-Read-Many once the deployment locks it (``infra/terraform``,
+``worm_locked``). That variable has no default, so the lock is always a stated decision rather
+than one this repository took on a deployment's behalf.
+"""
 
 from __future__ import annotations
 

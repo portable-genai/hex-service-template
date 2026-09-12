@@ -61,7 +61,8 @@ fail-closed helpers, rule R8 routing to the `human-review-console` through `revi
 `eval/run_eval.py` using the eval-kit scaffold + a not-falsely-green test, committed lockfiles, a
 hardened Dockerfile (digest-pinned, non-root, healthchecked), a vertical-neutral
 `infra/terraform/` deploy posture (residency validated at plan time, Org Policy, regional CMEK,
-least-privilege IAM, a locked WORM log bucket, security alerts, a dry-run-first VPC-SC perimeter
+least-privilege IAM, a WORM log bucket whose irreversible lock takes no default, security
+alerts, a dry-run-first VPC-SC perimeter
 and an opt-in Cloud Run edge, all checked offline by `make tf-check` and by a CI job), and
 the full mandated artifact set (LICENSE, AGENTS.md, docs/practices-audit.md,
 .env.example, .env.secrets.example). The four commons packages are pre-pinned by tag.

@@ -19,6 +19,15 @@
 
 mock_provider "google" {}
 
+# worm_locked has NO DEFAULT (variables.tf): the audit bucket's lock is irreversible, so a plan
+# refuses until the deployment states it. These runs are deployments too, so the file states it
+# once here, in the compliant production form, and the two runs that exercise the unlocked
+# posture override it. A run that forgot to state it would fail on the missing required
+# variable, which is the refusal this shape exists to produce.
+variables {
+  worm_locked = true
+}
+
 run "residency_defaults_are_in_country" {
   command = plan
 
@@ -57,9 +66,11 @@ run "residency_defaults_are_in_country" {
     error_message = "Service-account key creation must stay forbidden: an exported key is a credential that leaves the perimeter in a file."
   }
 
+  # The lock is STATED by this run (see the file-level variables block), not defaulted. What is
+  # defaulted is the retention window, and the floor it sits on binds because the lock is on.
   assert {
     condition     = var.worm_locked && var.retention_days == 180
-    error_message = "The audit bucket must stay locked at the six-month retention floor by default."
+    error_message = "A locked audit bucket must sit on the six-month retention floor, and this run states the lock."
   }
 
   assert {
@@ -234,13 +245,55 @@ run "reject_region_outside_the_residency_allowlist" {
   expect_failures = [var.region]
 }
 
-run "reject_retention_below_six_months" {
+# The floor binds BECAUSE the bucket is locked. Stated here rather than inherited, so the run
+# reads as the production posture it is testing.
+run "reject_retention_below_six_months_when_locked" {
   command = plan
 
   variables {
     project_id     = "fictional-agent-project"
     enable_vpc_sc  = false
+    worm_locked    = true
     retention_days = 179
+  }
+
+  expect_failures = [var.retention_days]
+}
+
+# The other half of the conditional floor, and the reason it is conditional: an UNLOCKED stack is
+# destroyable and its retention policy is removable by a project owner anyway, so it evidences
+# routing and coverage rather than immutability and may keep a short window. Without this run the
+# floor could be quietly made unconditional again and every other run here would stay green.
+run "an_unlocked_stack_may_keep_a_short_retention_window" {
+  command = plan
+
+  variables {
+    project_id     = "fictional-agent-project"
+    enable_vpc_sc  = false
+    worm_locked    = false
+    retention_days = 3
+  }
+
+  assert {
+    condition     = !google_logging_project_bucket_config.worm_audit.locked
+    error_message = "With worm_locked = false the bucket must be created UNLOCKED, so the stack stays destroyable."
+  }
+
+  assert {
+    condition     = google_logging_project_bucket_config.worm_audit.retention_days == 3
+    error_message = "An unlocked stack's short retention window must reach the bucket, not be silently floored."
+  }
+}
+
+# Zero is not a posture. The floor drops to one day when the lock is off; it does not disappear.
+run "reject_retention_below_one_day_even_unlocked" {
+  command = plan
+
+  variables {
+    project_id     = "fictional-agent-project"
+    enable_vpc_sc  = false
+    worm_locked    = false
+    retention_days = 0
   }
 
   expect_failures = [var.retention_days]
@@ -252,6 +305,7 @@ run "reject_reducing_existing_locked_retention" {
   variables {
     project_id                     = "fictional-agent-project"
     enable_vpc_sc                  = false
+    worm_locked                    = true
     retention_days                 = 180
     existing_locked_retention_days = 2557
   }

@@ -9,7 +9,8 @@
 #         a render verbatim, which is why the two variables are nullable here and made
 #         effective in naming.tf.
 #   P-07 (auditability and retention): `retention_days` is a variable because the WORM bucket
-#         lock is irreversible, so the retention window has to be a deliberate decision.
+#         lock is irreversible, so the retention window has to be a deliberate decision, and
+#         `worm_locked` has NO DEFAULT so the lock itself is always a stated one.
 #   P-06 / R8 (maker-checker): `human_review_url` is required when the serving edge is
 #         enabled, because the managed review router refuses to swallow an escalation with no
 #         console configured. A deploy that would ship R8 unwired fails at plan time.
@@ -18,8 +19,9 @@
 #   - QUICK EVALUATION (project-scoped, no org-level roles): project_id plus
 #     enable_vpc_sc = false, enable_org_policies = false, worm_locked = false. Everything
 #     stays deletable. NOT a compliant production posture.
-#   - FULL SOVEREIGN (the default): org-policy guardrails, a dry-run VPC-SC perimeter, and a
-#     locked WORM bucket.
+#   - FULL SOVEREIGN (every other default, plus worm_locked = true): org-policy guardrails, a
+#     dry-run VPC-SC perimeter, and a locked WORM bucket. The lock is the one value neither
+#     posture inherits: it has no default, so the plan refuses until the deployment names it.
 
 variable "project_id" {
   description = "Target GCP project id (required). Single-tenant, in-region."
@@ -109,13 +111,22 @@ variable "additional_resource_locations" {
 }
 
 variable "retention_days" {
-  description = "WORM audit-log retention in days. Default 180 (six months). The lock is irreversible."
+  description = <<-EOT
+    WORM audit-log retention in days. Default 180 (six months). The lock is irreversible.
+
+    The 180-day compliance floor (P-07) binds whenever worm_locked = true, which is the
+    production posture. It is NOT applied to an unlocked stack, where the retention policy is
+    removable by a project owner anyway and therefore evidences routing and coverage rather
+    than immutability. That lets an evaluation or reference deployment keep a short,
+    destroyable window without weakening what a production deployment gets: turning the lock
+    on re-imposes the floor at plan time.
+  EOT
   type        = number
   default     = 180
 
   validation {
-    condition     = var.retention_days >= 180
-    error_message = "Compliance retention must be at least 180 days (six months) (P-07)."
+    condition     = var.worm_locked ? var.retention_days >= 180 : var.retention_days >= 1
+    error_message = "A LOCKED stack must retain at least 180 days (six months) (P-07); an unlocked stack must still retain at least 1 day."
   }
 }
 
@@ -136,19 +147,29 @@ variable "existing_locked_retention_days" {
 }
 
 variable "worm_locked" {
+  type        = bool
   description = <<-EOT
     Lock the WORM audit bucket (P-07, rule R2).
+
     #########################################################################
     # WARNING: LOCKING IS IRREVERSIBLE. With true, the bucket and its       #
     # retention window can NEVER be reduced or deleted until every entry    #
-    # ages out (180 days by default), not even with project-owner rights.   #
+    # ages out (retention_days), not even with project-owner rights.        #
     #########################################################################
-    true (the default) is REQUIRED for a compliant production deploy: the audit trail is
-    Write-Once-Read-Many only when locked. Set false ONLY for an evaluation or demo stack
-    that must stay deletable; that posture is NOT compliant.
+
+    NO DEFAULT, and that is the decision. An irreversible control must never arrive because a
+    deployment said nothing, so there is no default of true: elsewhere in this fleet a default
+    of true locked an audit bucket until 2033 on a first apply nobody reviewed. A fork running
+    this as a system of record must not quietly lose the WORM guarantee either, so there is no
+    default of false. Every plan names it, and the name is the fleet's one name for this
+    control, so a deployment tfvars states the lock the same way in every stack.
+
+    true is the compliant production posture: the audit trail is Write-Once-Read-Many only when
+    locked, and the 180-day floor on retention_days binds only then. false keeps the bucket, its
+    retention and its sink, and leaves the bucket destroyable: an evaluation or reference
+    posture, NOT WORM, and the deployment tfvars says why. Setting false against an ALREADY
+    locked bucket does not unlock it; the API refuses. This governs the first apply.
   EOT
-  type        = bool
-  default     = true
 }
 
 variable "enable_org_policies" {

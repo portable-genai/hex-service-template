@@ -11,8 +11,14 @@
    supported and the file spells out both:
    - QUICK EVALUATION: `enable_org_policies = false`, `enable_vpc_sc = false`,
      `worm_locked = false`. Everything stays deletable. NOT a compliant production posture.
-   - SOVEREIGN (the defaults): Org Policy guardrails on, the WORM audit bucket LOCKED, and a
-     VPC-SC perimeter in DRY RUN. Locking is irreversible; confirm `retention_days` first.
+   - SOVEREIGN: Org Policy guardrails on (their default), the WORM audit bucket LOCKED, and a
+     VPC-SC perimeter in DRY RUN.
+
+   `worm_locked` is the one value with NO DEFAULT, so the plan refuses until this file states it
+   whichever posture you pick. That is deliberate: locking is irreversible, and an unset value
+   may take a reviewed default but never an irreversible one. Confirm `retention_days` before the
+   first apply, and say in the file why a declined lock is declined. The 180-day floor binds only
+   when the lock is on, so an evaluation stack may keep a short, destroyable window.
 4. **Initialise the state backend and apply.** The backend is partial, so
    `terraform init -backend-config="bucket=YOUR_STATE_BUCKET" -backend-config="prefix={{ cookiecutter.project_slug }}/ENVIRONMENT"`.
    The serving edge is off by default, so the residency, encryption and audit stack can be

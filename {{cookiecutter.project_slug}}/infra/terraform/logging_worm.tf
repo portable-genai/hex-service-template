@@ -1,4 +1,5 @@
-# logging_worm.tf: the WORM audit trail, a locked Cloud Logging bucket plus sink.
+# logging_worm.tf: the WORM audit trail, a Cloud Logging bucket plus sink. A production
+# deployment locks the bucket; the lock has no default, so every plan states it.
 #
 # Principle map (COMPLIANCE.md):
 #   P-07 (auditable by design, rule R2): the audit stream is routed to a Cloud Logging bucket
@@ -15,12 +16,14 @@
 #
 # ############################################################################ #
 # # WARNING: LOCKING IS IRREVERSIBLE.                                        # #
-# # The lock is variable-controlled (var.worm_locked, DEFAULT TRUE). Locking # #
-# # permanently prevents reducing retention or deleting this bucket for the  # #
-# # full retention window. It cannot be undone, not even with project-owner  # #
-# # rights. Confirm retention_days before apply. worm_locked = true is       # #
-# # REQUIRED for a compliant production deploy; set it false only for an     # #
-# # evaluation stack that must stay deletable (NOT compliant).               # #
+# # var.worm_locked has NO DEFAULT: a plan refuses until this deployment     # #
+# # states it, because an irreversible control must never arrive because a   # #
+# # file said nothing. With true, locking permanently prevents reducing      # #
+# # retention or deleting this bucket for the full retention window. It      # #
+# # cannot be undone, not even with project-owner rights. Confirm            # #
+# # retention_days before apply. true is REQUIRED for a compliant production # #
+# # deploy; an evaluation stack states false with its reason and stays       # #
+# # deletable (NOT compliant).                                              # #
 # ############################################################################ #
 #
 # NOTE for template maintainers: copied into a render VERBATIM. No Jinja here.
@@ -29,7 +32,7 @@ resource "google_logging_project_bucket_config" "worm_audit" {
   project        = var.project_id
   location       = local.region # the selected, allowlisted region (P-03)
   bucket_id      = local.worm_bucket_id
-  description    = "WORM audit bucket for ${local.render_repository} (six-month default retention)."
+  description    = "WORM audit bucket for ${local.render_repository} (WORM when worm_locked = true; the six-month floor binds when locked)."
   retention_days = var.retention_days
 
   # IRREVERSIBLE when true (the default): see the warning above.
@@ -46,7 +49,7 @@ resource "google_logging_project_bucket_config" "worm_audit" {
   ]
 }
 
-# Route the application's audit stream, and every Cloud Audit Log, into the locked bucket.
+# Route the application's audit stream, and every Cloud Audit Log, into the WORM bucket.
 resource "google_logging_project_sink" "audit_to_worm" {
   project     = var.project_id
   name        = local.audit_sink_name

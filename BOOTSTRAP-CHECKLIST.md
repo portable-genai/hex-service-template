@@ -125,9 +125,14 @@ report it against `hex-service-template`, because it is failing in every repo re
   regulated data out of jurisdiction.
 - Org Policy guardrails (resource-location allowlist, no service-account key creation, uniform
   bucket-level access, optional domain-restricted sharing), a REGIONAL CMEK key ring with 90-day
-  rotation and per-service-agent bindings, a least-privilege serving identity, a locked WORM
+  rotation and per-service-agent bindings, a least-privilege serving identity, a WORM-capable
   Cloud Logging bucket plus sink with DATA_READ auditing on, five log-based security metrics with
   alert policies, and a VPC-SC perimeter that starts in DRY RUN.
+- The audit bucket's lock is the one irreversible control, so it takes NO DEFAULT: `worm_locked`
+  has none, a plan refuses until the deployment states it, and the retention floor binds only
+  when it is on. `tests/unit/test_irreversible_controls_are_named.py` and the plan-level runs in
+  `production_edge.tftest.hcl` hold both halves. Decide it before the first apply: that is the
+  only moment the choice exists.
 - The serving edge is OPT-IN (`production_edge_enabled = false`): Cloud Run behind an external
   load balancer, Cloud Armor and IAP, with a digest-pinned image, CMEK on the revision, and the
   three-state environment discipline carried onto the service (a variable with no value is ABSENT

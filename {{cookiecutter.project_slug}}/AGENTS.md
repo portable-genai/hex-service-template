@@ -62,7 +62,9 @@ Hexagonal, ports and adapters:
   are its whole security boundary. Run `make drop-ui` if this repo has no user-facing surface.
 - `infra/terraform/` is the vertical-neutral deploy posture, not a skeleton: residency validated
   at plan time, Org Policy guardrails, a regional CMEK key ring, a least-privilege serving
-  identity, a locked WORM log bucket and sink, the five security metrics and alerts, a
+  identity, a WORM log bucket and sink whose lock has NO DEFAULT so a plan refuses until the
+  deployment states it (`worm_locked`; the retention floor binds only when it is on), the five
+  security metrics and alerts, a
   dry-run-first VPC-SC perimeter, and the opt-in Cloud Run serving edge behind IAP and Cloud
   Armor. `render.tf.json` is the ONE file cookiecutter rendered; every `.tf` and `.tftest.hcl`
   beside it was copied verbatim, because Terraform interpolation and Jinja fight over braces.
