@@ -22,7 +22,9 @@
 # (COMPLIANCE rule R1 records that as owed), and a metric whose filter can never match is a
 # green light nobody earned. Add it in the same commit that binds the guardrail.
 #
-# Alert policies are always created; var.alert_notification_channels attaches the channels.
+# Alert policies exist only when var.posture_alerts_enabled is true (default false: every
+# metric-based condition is billed, and a reference deployment pages nobody). When enabled,
+# var.alert_notification_channels attaches the channels.
 #
 # NOTE for template maintainers: copied into a render VERBATIM. No Jinja here.
 
@@ -52,7 +54,7 @@ locals {
 }
 
 resource "google_logging_metric" "security" {
-  for_each = local.security_metrics
+  for_each = var.posture_alerts_enabled ? local.security_metrics : {}
 
   project     = var.project_id
   name        = "${local.metric_prefix}_${each.key}"
@@ -69,7 +71,7 @@ resource "google_logging_metric" "security" {
 }
 
 resource "google_monitoring_alert_policy" "security" {
-  for_each = local.security_metrics
+  for_each = var.posture_alerts_enabled ? local.security_metrics : {}
 
   project      = var.project_id
   display_name = "${var.name_prefix} security: ${each.key}"
