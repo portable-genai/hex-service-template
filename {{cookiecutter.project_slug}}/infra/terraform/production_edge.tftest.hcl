@@ -32,6 +32,7 @@ run "residency_defaults_are_in_country" {
   command = plan
 
   variables {
+    cmek_enabled  = true
     project_id    = "fictional-agent-project"
     enable_vpc_sc = false
   }
@@ -47,7 +48,7 @@ run "residency_defaults_are_in_country" {
   }
 
   assert {
-    condition     = google_kms_key_ring.cmek.location == local.region
+    condition     = google_kms_key_ring.cmek[0].location == local.region
     error_message = "CMEK key material must be regional and in the deployment region, never a multi-region ring."
   }
 
@@ -148,6 +149,7 @@ run "serving_edge_contract" {
   }
 
   variables {
+    cmek_enabled                = true
     project_id                  = "fictional-agent-project"
     enable_vpc_sc               = false
     production_edge_enabled     = true
@@ -175,7 +177,7 @@ run "serving_edge_contract" {
   }
 
   assert {
-    condition     = google_cloud_run_v2_service.api[0].template[0].encryption_key == google_kms_crypto_key.cmek.id
+    condition     = google_cloud_run_v2_service.api[0].template[0].encryption_key == google_kms_crypto_key.cmek[0].id
     error_message = "The revision must be bound to the regional CMEK: encryption does not cascade."
   }
 
@@ -421,4 +423,31 @@ run "reject_moving_secret_version" {
   }
 
   expect_failures = [var.additional_secret_env]
+}
+
+# --------------------------------------------------------------------------- #
+# The default: no key material at all
+# --------------------------------------------------------------------------- #
+# cmek_enabled is false unless a deployment says otherwise, and the consequence is asserted
+# rather than assumed: no ring, no key, no grant, and a log bucket with no cmek_settings block.
+# Every resource is still encrypted at rest with Google-managed keys. What the default declines
+# is the part that cannot be undone: a ring that can never be deleted and a bucket that can
+# never drop its key.
+run "the_default_creates_no_key_material" {
+  command = plan
+
+  variables {
+    project_id    = "fictional-agent-project"
+    enable_vpc_sc = false
+  }
+
+  assert {
+    condition     = length(google_kms_key_ring.cmek) == 0 && length(google_kms_crypto_key.cmek) == 0
+    error_message = "cmek_enabled defaults to false, so no key ring or key may be planned."
+  }
+
+  assert {
+    condition     = length(google_logging_project_bucket_config.worm_audit.cmek_settings) == 0
+    error_message = "With CMEK off the audit bucket must carry no cmek_settings block: once present it can never be removed."
+  }
 }
