@@ -7,8 +7,8 @@ here. Read it first. This file carries only what is specific to this one.
 
 ## What this is
 
-`hex-service-template` is a reusable CI
-workflow + a cookiecutter template that starts a new hexagonal agent repo at `cdd-sow-research` parity.
+`hex-service-template` is a cookiecutter template that starts a new hexagonal agent repo at
+`cdd-sow-research` parity. Its own gate is the render gate below.
 Siblings: `pii-kit`, `hex-service-kit`, `agent-eval-kit`.
 
 ## Layout
@@ -70,35 +70,45 @@ lockfiles and the header map leaves all three agreeing), so the rendered
 first local object store that knows the sha (a sibling checkout, `COMMONS_GIT_CHECKOUT_ROOT`, or
 the directory an editable/local install came from) and also checks `rev-list -n 1 <tag>` against
 the pin. It skips only where no store can answer, which is why `verify-render.sh` asserts it did
-NOT skip there: the render harness installs the commons from their sibling checkouts, so evidence
-is always available.
+NOT skip there: the render harness installs the commons from git checkouts and names them to the
+check through `COMMONS_GIT_CHECKOUT_ROOT`, so evidence is always available.
 
 ## Editing and verifying the template
 
-The template is NOT rendered in place, so you cannot run its gate directly. After editing any file
+The template is NOT rendered in place, so its gate is a render gate. After editing any file
 under `{{cookiecutter.project_slug}}/`, run:
 
 ```sh
-scripts/verify-render.sh
+make gate        # which runs scripts/verify-render.sh
 ```
+
+The same target is this repository's hosted CI job (`render-gate`), rendered from
+`org-metadata/ci/gcp/repository-policy.json` like every other caller, and the required check on
+`main`. `requirements-dev.lock` at the root pins the one tool it needs from its environment, `uv`.
 
 It renders the template FOUR TIMES, once per row of its name-length matrix, and runs the whole
 verification on each: `make lint`, then `ruff` + `ruff format --check` + `mypy src` + `pytest` +
 `python eval/run_eval.py`, THEN the socket-level exposure matrix, the pin object-type check, the
 demo self-test, the portability tour, the static render, the documentation checks and the ui
 policy tests, THEN the whole thing again with `ui/` removed. Each render installs the four
-commons packages from their local sibling checkouts (so the git+https pins do not need to
-resolve) and the rendered repo with `--no-deps`. All rows must pass. It shells out to `uvx --from
-cookiecutter cookiecutter`, so it needs `uv` on PATH but not a system cookiecutter install.
+commons packages at the commits `cookiecutter.json` pins, from fresh clones (so the answer is the
+same on a laptop and in CI, and a pin naming a commit GitHub does not have fails), and the
+rendered repo with `--no-deps`. All rows must pass. It shells out to `uvx --from cookiecutter
+cookiecutter`, so it needs `uv` on PATH but not a system cookiecutter install.
+
+To co-develop a commons change with the template before either is released, point
+`COMMONS_GIT_CHECKOUT_ROOT` at a directory of checkouts (the workspace parent works): they are
+installed as they stand, and the run ends by saying it is NOT the gate.
 
 The four rows are `short`, `default`, `refuted` and `max`. `scripts/verify-render.sh <label>`
 runs one row for a fast edit loop and says so loudly; it is NOT the gate.
 
-That script installs the commons from local checkouts, which means it proves the CODE renders and
-passes, not that the PINS resolve. Those are different failures. After changing a version
-variable, also render once with `pip install -e ".[dev]"` (no `--no-deps`, no local checkouts) so
-the git tags are actually fetched from GitHub, and render outside this workspace so a throwaway is
-never mistaken for a real repo.
+That script proves the CODE renders and passes against the pinned commons. It does not prove
+the committed lockfiles install: each render's third-party packages are resolved fresh, and the
+rendered repo is installed with `--no-deps`. After changing a version variable or a lockfile,
+also render once with `pip install -e ".[dev]"` (no `--no-deps`) so the tags `pyproject.toml`
+names are actually resolved, and render outside this workspace so a throwaway is never mistaken
+for a real repo.
 
 ## Invariants
 

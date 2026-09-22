@@ -33,7 +33,7 @@ configuration rots silently, and these had: they still pinned python 3.12 and 3.
 fleet moved to 3.14. A hand-maintained workflow per repository is how that happens.
 
 The gate that actually runs is the rendered GitHub Actions caller, from the contract in
-`org-metadata/ci/gcp/repository-policy.json` and executed by `org-metadata/ci/gcp/runner/run-grc-ci`.
+`org-metadata/ci/gcp/repository-policy.json` and executed by `.github/ci/runner/run-grc-ci`.
 It is the required status check on `main`, and per repository it runs:
 
 - the repo's own `gate` (or `check`) target: `ruff` + `ruff format` + `mypy --strict` +
@@ -188,16 +188,18 @@ this. New work goes in `{{cookiecutter.project_slug}}/ui/`, which is render-veri
 
 ## Verifying the template
 
-`scripts/verify-render.sh` renders the template ACROSS A MATRIX OF NAME LENGTHS (`short`,
-`default`, `refuted`, `max`), and for each render installs the four commons from their local
-checkouts and runs `make lint` and `make plugin` by NAME and then the full offline gate on the
-output, THEN the socket-level exposure matrix, the demo self-test, the portability tour, the
-static render and the documentation checks, THEN the whole gate again with `ui/` removed.
-The two targets are run by name for the same reason: a unit test exercises the renderer, but only
-the target proves the make wiring and the module path it names, and `make plugin` is also the
-only place the skills-less, server-less render is executed, which is the state every new repo
-starts in. Every row must be green. Run
-it after editing any template file.
+`make gate` runs `scripts/verify-render.sh`, and it is this repository's own required check: the
+hosted CI job `render-gate`, rendered from the same reviewed contract as every other caller. It
+renders the template ACROSS A MATRIX OF NAME LENGTHS (`short`, `default`, `refuted`, `max`), and
+for each render installs the four commons at the commits `cookiecutter.json` pins (fresh clones,
+so a laptop and CI get the same answer) and runs `make lint` and `make plugin` by NAME and then
+the full offline gate on the output, THEN the socket-level exposure matrix, the demo self-test,
+the portability tour, the static render and the documentation checks, THEN the whole gate again
+with `ui/` removed. The two targets are run by name for the same reason: a unit test exercises
+the renderer, but only the target proves the make wiring and the module path it names, and
+`make plugin` is also the only place the skills-less, server-less render is executed, which is
+the state every new repo starts in. Every row must be green. Run it after editing any template
+file.
 
 The matrix exists because nothing in a rendered repo may depend on the LENGTH of a rendered
 value, and a one-row gate cannot see when something does: `make lint` enforces 100 columns, and a
@@ -205,8 +207,11 @@ line that fits at the default `example_agent` was red at a 42 character package 
 row renders at exactly the limits `hooks/pre_gen_project.py` refuses to exceed, so the boundary
 is stated, enforced and tested rather than assumed.
 
-It proves the CODE renders and passes. It does not prove the version PINS resolve or that the
-committed lockfiles install: for that, render outside this workspace and run `make install`.
+It proves the CODE renders and passes against the pinned commons, and a pin naming a commit GitHub
+does not have fails it. It does not prove the committed lockfiles install: for that, render
+outside this workspace and run `make install`. To co-develop a commons change before it is
+released, set `COMMONS_GIT_CHECKOUT_ROOT` to a directory of checkouts; such a run installs them as
+they stand and says it is NOT the gate.
 
 ## License
 

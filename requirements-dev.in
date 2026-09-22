@@ -1,0 +1,6 @@
+# The template's own gate toolchain, compiled into requirements-dev.lock.
+#
+# The gate is scripts/verify-render.sh, and the one tool it needs from this environment is uv:
+# it renders through `uvx --from cookiecutter` and builds each render's environment with
+# `uv venv` and `uv pip install`. Everything a render needs beyond that is resolved per render.
+uv

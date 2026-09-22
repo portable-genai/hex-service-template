@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Render the cookiecutter template ACROSS A MATRIX OF NAME LENGTHS and run the FULL offline gate
-# on every render, installing the FOUR commons packages from their local sibling checkouts (so
-# the git+https pins do not need to resolve during verification). This is the template's own
-# "gate": if it fails, the template does not start a repo at parity.
+# on every render, installing the FOUR commons packages at the commits cookiecutter.json pins,
+# cloned fresh (see "The commons" below). This is the template's own "gate": if it fails, the
+# template does not start a repo at parity. `make gate` runs it, and so does the hosted CI job.
 #
 # WHY A MATRIX. Every rendered line that contains `package_name`, `project_slug` or `env_prefix`
 # grows with the name. `make lint` is the FIRST step of both the rendered gate and the shared
@@ -18,10 +18,12 @@
 # in hooks/pre_gen_project.py, which REFUSES anything longer, so "any valid combination of names
 # renders green" is a statement with a tested boundary rather than an untestable absolute.
 #
-# What this does NOT prove: that the pins RESOLVE, or that the committed lockfiles install. Those
-# are different failures. After changing a version variable or a lockfile, also render outside
-# this workspace and run `make install` (which installs from requirements-dev.lock and fetches
-# the tags from GitHub) before trusting the template.
+# What this does NOT prove: that the committed lockfiles install. Each render's third-party
+# packages are resolved fresh below rather than from its lock, and the rendered repo itself is
+# installed with --no-deps. It does fetch every pinned commons COMMIT from GitHub, so a pin naming
+# a commit GitHub does not have fails here. After changing a version variable or a lockfile, also
+# render outside this workspace and run `make install` (which installs from requirements-dev.lock)
+# before trusting the template.
 #
 # Usage:
 #   scripts/verify-render.sh              # the whole matrix; this is the gate
@@ -29,9 +31,69 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"       # the hex-service-template repo
-WORKSPACE="$(cd "$HERE/.." && pwd)"            # the workspace parent (holds the sibling kits)
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+
+# ---------------------------------------------------------------------------------------- #
+# The commons. A rendered repo installs the commits cookiecutter.json pins, because its lockfiles
+# pin exactly those, so the gate installs the same code: each package cloned fresh from GitHub
+# and checked out at its pinned commit. That makes the answer a property of THIS commit of the
+# template, the same on a laptop and in the hosted CI job. It used to install whatever the
+# sibling checkouts in the workspace held, which is not what any render ships, and which a CI
+# runner does not have at all. A full clone keeps the tags and the history, which the rendered
+# pin object-type check below needs.
+#
+# COMMONS_GIT_CHECKOUT_ROOT names a directory of existing checkouts instead, one per package name,
+# installed AS THEY STAND: that is for co-developing a commons change with the template before
+# either is released. It is the same variable the rendered object-type check searches, and a run
+# that uses it says loudly that it is NOT the gate.
+#
+# Fields, `:` separated: the package, and the cookiecutter.json variable carrying its commit.
+# ---------------------------------------------------------------------------------------- #
+COMMONS=(
+  "pii-kit:pii_kit_commit"
+  "hex-service-kit:commons_commit"
+  "agent-eval-kit:eval_kit_commit"
+  "review-kit:review_kit_commit"
+)
+COMMONS_ROOT=""
+COMMONS_PINNED=0
+
+provide_commons() {
+  local entry kit variable commit head
+  if [ -n "${COMMONS_GIT_CHECKOUT_ROOT:-}" ]; then
+    COMMONS_ROOT="$(cd "$COMMONS_GIT_CHECKOUT_ROOT" && pwd)"
+    echo "== the commons: the checkouts under $COMMONS_ROOT, AS THEY STAND =="
+    echo "   COMMONS_GIT_CHECKOUT_ROOT is set, so the pinned commits are NOT what gets installed."
+    for entry in "${COMMONS[@]}"; do
+      kit="${entry%%:*}"
+      if ! git -C "$COMMONS_ROOT/$kit" rev-parse --git-dir >/dev/null 2>&1; then
+        echo "   FAILED: $COMMONS_ROOT/$kit is not a git checkout" >&2
+        exit 1
+      fi
+    done
+  else
+    COMMONS_ROOT="$WORK/commons"
+    echo "== the commons: fresh clones, checked out at the commits cookiecutter.json pins =="
+    for entry in "${COMMONS[@]}"; do
+      kit="${entry%%:*}"
+      variable="${entry#*:}"
+      commit="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' \
+        "$HERE/cookiecutter.json" "$variable")"
+      git clone --quiet "https://github.com/portable-genai/$kit.git" "$COMMONS_ROOT/$kit"
+      git -C "$COMMONS_ROOT/$kit" checkout --quiet --detach "$commit"
+      head="$(git -C "$COMMONS_ROOT/$kit" rev-parse HEAD)"
+      if [ "$head" != "$commit" ]; then
+        echo "   FAILED: $kit checked out $head, not the pinned $commit ($variable)" >&2
+        exit 1
+      fi
+      echo "   $kit at $commit ($variable)"
+    done
+    COMMONS_PINNED=1
+  fi
+  # The rendered object-type check reads the same variable, so it asks these object stores.
+  export COMMONS_GIT_CHECKOUT_ROOT="$COMMONS_ROOT"
+}
 
 # ---------------------------------------------------------------------------------------- #
 # The render matrix. Fields, `|` separated:
@@ -134,15 +196,15 @@ verify_one_render() {
   local dir="$out/$slug"
   cd "$dir"
 
-  echo "== creating venv + installing commons from local checkouts =="
+  echo "== creating venv + installing the commons from $COMMONS_ROOT =="
   uv venv --python 3.12 .venv >/dev/null
   # shellcheck disable=SC1091
   source .venv/bin/activate
   uv pip install --quiet \
-    -e "$WORKSPACE/pii-kit" \
-    -e "$WORKSPACE/hex-service-kit" \
-    -e "$WORKSPACE/agent-eval-kit" \
-    -e "$WORKSPACE/review-kit" \
+    -e "$COMMONS_ROOT/pii-kit" \
+    -e "$COMMONS_ROOT/hex-service-kit" \
+    -e "$COMMONS_ROOT/agent-eval-kit" \
+    -e "$COMMONS_ROOT/review-kit" \
     fastapi uvicorn httpx pydantic pyyaml types-PyYAML \
     ruff==0.16.4 mypy pytest jsonschema
   # Install the rendered repo itself WITHOUT re-resolving its git+https commons pins.
@@ -201,9 +263,9 @@ verify_one_render() {
 
   # The commons pins are checked by OBJECT TYPE (an annotated tag object sha is also 40 hex, so a
   # regex cannot tell one from a commit). That check needs a git object store, and here it has
-  # one: the commons are installed editable from their sibling checkouts. Assert it actually RAN,
-  # so the guard cannot quietly degrade into a skip in the one place it is guaranteed to have
-  # evidence.
+  # one: the commons are installed editable from git checkouts, named to it by
+  # COMMONS_GIT_CHECKOUT_ROOT. Assert it actually RAN, so the guard cannot quietly degrade into a
+  # skip in the one place it is guaranteed to have evidence.
   echo "== the commons pins are commits, checked against the real git objects =="
   # No extra -q: the rendered pyproject already passes one in `addopts`, and a second one is -qq,
   # which suppresses the "N passed" summary line the checks below read.
@@ -310,6 +372,7 @@ echo "== this gate's own pass/skip assertion, proved against synthetic summaries
 assert_the_pytest_assertion_can_fail
 echo "== the name-length limits the pre-gen hook enforces =="
 assert_max_row_matches_the_hook
+provide_commons
 
 ran=0
 for row in "${MATRIX[@]}"; do
@@ -329,6 +392,12 @@ fi
 if [ -n "$WANTED" ]; then
   echo
   echo "== ONE ROW ONLY ('$WANTED'): this is NOT the gate. Run with no argument before landing. =="
+  exit 0
+fi
+if [ "$COMMONS_PINNED" -ne 1 ]; then
+  echo
+  echo "== GREEN across ${ran} name sets against the commons AS THEY STAND in $COMMONS_ROOT:"
+  echo "== this is NOT the gate. Unset COMMONS_GIT_CHECKOUT_ROOT and run again before landing. =="
   exit 0
 fi
 

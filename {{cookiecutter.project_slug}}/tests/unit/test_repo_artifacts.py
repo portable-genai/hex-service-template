@@ -303,7 +303,7 @@ def test_each_locked_sha_is_a_commit_object_and_not_a_tag_object(name: str) -> N
     Skips only when no local object store can answer for any package at all: a check with no
     evidence has proved nothing and must say so rather than pass. `scripts/verify-render.sh`
     asserts that this does NOT skip there, because the render harness installs the commons from
-    their sibling checkouts and therefore always has evidence.
+    git checkouts of the pinned commits and therefore always has evidence.
     """
     text = (REPO_ROOT / name).read_text(encoding="utf-8")
     locked = _commons_refs(text)
