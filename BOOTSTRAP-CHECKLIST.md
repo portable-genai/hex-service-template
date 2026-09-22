@@ -325,14 +325,14 @@ Read these before editing the TEMPLATE (not the rendered repo).
 ## 5. Verifying a template change
 
 ```sh
-scripts/verify-render.sh
+make gate        # runs scripts/verify-render.sh; also the template's required CI check
 ```
 
-It renders FOUR name sets (`short`, `default`, `refuted`, `max`), installs the commons from local
-checkouts, and runs `make lint` plus the full offline gate on each PLUS the demo self-test, the
-portability tour, the static render, the documentation checks, and the whole gate again with
-`ui/` removed. Every row must be green. `scripts/verify-render.sh <label>` runs one row for an
-edit loop and is NOT the gate. It proves the CODE renders and passes; it does not prove the
-version PINS resolve or that the committed lockfiles install. After changing a version variable
-or a lockfile, also render OUTSIDE this workspace and run `make install` (which fetches the tags
-from GitHub) before trusting the template.
+It renders FOUR name sets (`short`, `default`, `refuted`, `max`), installs the commons at the
+commits `cookiecutter.json` pins, and runs `make lint` plus the full offline gate on each PLUS the
+demo self-test, the portability tour, the static render, the documentation checks, and the whole
+gate again with `ui/` removed. Every row must be green. `scripts/verify-render.sh <label>` runs one row for an
+edit loop and is NOT the gate. It proves the CODE renders and passes against the pinned commons;
+it does not prove that the committed lockfiles install. After changing a version variable or a
+lockfile, also render OUTSIDE this workspace and run `make install` (which fetches the tags from
+GitHub) before trusting the template.
