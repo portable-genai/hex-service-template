@@ -193,7 +193,7 @@ run "serving_edge_contract" {
 
   assert {
     condition     = one([for item in google_cloud_run_v2_service.api[0].template[0].containers[0].env : item.value if item.name == "HUMAN_REVIEW_URL"]) == var.human_review_url
-    error_message = "Rule R8: the service must be told where an escalation is routed, or the managed router refuses."
+    error_message = "Rule R8: the service must be told where an escalation is routed, or it refuses to boot with routing on."
   }
 
   assert {
@@ -357,6 +357,45 @@ run "reject_edge_with_no_review_console" {
   }
 
   expect_failures = [var.human_review_url]
+}
+
+run "edge_with_routing_stated_off_needs_no_console" {
+  command = plan
+
+  variables {
+    project_id                  = "fictional-agent-project"
+    enable_vpc_sc               = false
+    production_edge_enabled     = true
+    api_image                   = "example-docker.pkg.dev/fictional-agent-project/agent/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    service_domain              = "agent.fictional-bank.example"
+    human_review_url            = ""
+    review_routing_enabled      = false
+    alert_notification_channels = ["projects/fictional-agent-project/notificationChannels/123"]
+  }
+
+  assert {
+    condition     = one([for item in google_cloud_run_v2_service.api[0].template[0].containers[0].env : item.value if item.name == "${local.render_env_prefix}_REVIEW_ROUTING"]) == "false"
+    error_message = "a deployment that switches routing off must tell the service so, not leave it to infer from a missing console"
+  }
+}
+
+run "edge_states_review_routing_on_by_default" {
+  command = plan
+
+  variables {
+    project_id                  = "fictional-agent-project"
+    enable_vpc_sc               = false
+    production_edge_enabled     = true
+    api_image                   = "example-docker.pkg.dev/fictional-agent-project/agent/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    service_domain              = "agent.fictional-bank.example"
+    human_review_url            = "https://review.fictional-bank.example"
+    alert_notification_channels = ["projects/fictional-agent-project/notificationChannels/123"]
+  }
+
+  assert {
+    condition     = one([for item in google_cloud_run_v2_service.api[0].template[0].containers[0].env : item.value if item.name == "${local.render_env_prefix}_REVIEW_ROUTING"]) == "true"
+    error_message = "review routing is a cheap control, on in the reference: the service must be told so explicitly"
+  }
 }
 
 run "reject_edge_with_no_alert_channel" {

@@ -35,8 +35,10 @@ class CloudReviewRouter:
     def route(self, result: TriageResult, *, maker: str, tenant: str = "") -> str:
         base_url = self._settings.review_url.strip()
         if not base_url:
-            # Fail closed: an escalation with nowhere to go must not be swallowed, because the
-            # caller would then treat a routed-nowhere result as reviewed.
+            # Fail closed: an escalation with nowhere to go must not return as if it were routed.
+            # Settings.load already refuses to boot with routing on and no console, so this is
+            # reached only by a Settings built directly; the caller's recording wrapper reports
+            # the raise as review_routing "failed".
             raise RuntimeError(
                 "review_url is not configured, so rule R8 cannot be honoured. Set "
                 "HUMAN_REVIEW_URL (config/settings.yaml review_url) to the human-review-console."

@@ -4,7 +4,8 @@ Rule R8 is the reason this port exists. A producer that sets ``requires_human_re
 the item to the human-review-console; terminating the escalation in a
 per-repo boolean is the failure this port removes, because a flag nobody reads is
 auto-execution with extra steps. Setting the flag and calling :meth:`route` is one act, not two
-optional ones: ``api.app`` and the CLI both call it on every escalated result.
+optional ones: ``api.app``, the agent tool and the CLI all call it on every escalated result,
+through ``adapters.controls.RecordingReviewRouter``, which reports what happened to the hand-off.
 
 The domain stays pure. This port names the hand-off; the adapters (not this module) depend on
 the shared ``review-kit`` client and perform the S2S submission.
@@ -24,7 +25,8 @@ class ReviewRouterPort(Protocol):
 
         ``maker`` is the VERIFIED principal that originated the underlying decision, never a
         client-asserted actor. The return value is the console's review id where the console
-        answered, or a local queue reference where the submission was buffered; it is never
-        empty, so a caller can record what happened to the escalation.
+        answered, or a local queue reference where the submission was buffered. It is empty
+        only from the disabled adapter a deployment binds by switching routing off, and the
+        caller reports that as ``review_routing: "off"`` rather than as a reference.
         """
         ...

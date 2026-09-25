@@ -93,7 +93,10 @@ report it against `hex-service-template`, because it is failing in every repo re
   `hex_service_kit.s2s.client_headers`: the receiver decides whether an uncredentialed call is
   acceptable, and it refuses an emptied secret itself.
 - CORS never falls back to `*`; an emptied variable denies rather than inheriting a default.
-- The managed review router refuses rather than swallowing an escalation.
+- Review routing on under the managed profile with no console named refuses at BOOT, and a
+  hand-off that fails at request time is reported to the caller as `review_routing: "failed"`
+  and logged, never swallowed. `<PREFIX>_REVIEW_ROUTING` switches routing (default on;
+  `review_routing_enabled` in Terraform), and off is stated in every response as `"off"`.
 
 ### The drift guards (the reason a repo stays at parity)
 - A port is registered in FIVE places and set equality is asserted across all five, in both
