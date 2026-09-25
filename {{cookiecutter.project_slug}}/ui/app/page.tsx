@@ -40,6 +40,13 @@ export default function Home() {
     };
   }, []);
 
+  // WIRE THIS CALL TO YOUR OWN API. This form posts the TEMPLATE's `TriageRequest`
+  // (`{ subject, text }` to `POST /v1/triage`). When the vertical reshapes that route or its
+  // request model, reshape this call and the form fields in the same commit:
+  // tests/unit/test_console_matches_api.py reads every `fetch(API + ...)` in ui/app/ and fails the
+  // gate until the path, the method and every required field match what the API serves, and it
+  // refuses a field the model would silently drop. Keep calls in the plain shape it reads:
+  // `fetch(API + "/v1/...", { method: "POST", body: JSON.stringify({ field, other: value }) })`.
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
