@@ -47,6 +47,10 @@ One env var, `{{ cookiecutter.env_prefix }}_PROFILE`, selects the adapter family
 
 - `local` (default) : SDK-free offline stack (seeded dev personas, hash-chained SQLite WORM audit
   from the commons). No cloud SDK. The default for dev/test/CI.
+- `live` : the `local` stack and posture, with any model port served by a local open-weight model
+  through the shared `hex_service_kit.localmodel` client (`LOCAL_MODEL_URL`, `LOCAL_MODEL`; the
+  client's error names the two-line server start recipe). A new scaffold binds no model port, so
+  `live` binds exactly what `local` binds until you add one.
 - `gcp` : managed cloud (Cloud Logging WORM, IAP identity). SDK imports are lazy.
 - `onprem` : fail-fast `NotImplementedError` placeholders (the reversibility proof, P-12).
 

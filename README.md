@@ -55,7 +55,8 @@ ungated. Registering it is part of bootstrapping, not a follow-up.
 ## 2. The cookiecutter template
 
 Generates a complete hexagonal agent repo: a pure-stdlib domain core with a deterministic service,
-`@runtime_checkable` ports, three adapter profiles (local / gcp-lazy / onprem placeholder), a DI
+`@runtime_checkable` ports, three adapter profiles (local / gcp-lazy / onprem placeholder) plus a
+laptop `live` profile for a local open-weight model through `hex_service_kit.localmodel`, a DI
 container driven by `config/settings.yaml`, a FastAPI app wired with the commons identity / S2S /
 fail-closed helpers, rule R8 routing to the `human-review-console` through `review-kit`, an
 `eval/run_eval.py` using the eval-kit scaffold + a not-falsely-green test, committed lockfiles, a

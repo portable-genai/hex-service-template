@@ -63,6 +63,10 @@ report it against `hex-service-template`, because it is failing in every repo re
   binding table, `api/`, `cli/`, `agent/`.
 - Three profiles, swappable by one environment variable, with every port bound in every profile.
   Managed SDK imports are lazy, so the offline profiles import with no SDK installed.
+- A fourth, laptop-only profile, `live`: the `local` stack and posture with any model port served
+  by a local open-weight model through the shared `hex_service_kit.localmodel` client. The
+  scaffold binds no model port, so `live` starts identical to `local`; when you add one, bind its
+  `live` entry to a kit-backed `adapters/live/<port>.py` (CONTRIBUTING.md, the port walkthrough).
 - A deterministic domain service, redact-before-audit, citations on every result, and rule R8
   routing on every surface (API, CLI, agent tools).
 - Identity as a server-verified `Principal`; the client-asserted actor is discarded everywhere.

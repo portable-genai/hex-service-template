@@ -5,7 +5,7 @@
 # The matrix is the profile variable's states crossed with the S2S secret's states, each probed
 # with and without the seeded-persona header:
 #
-#             PROFILE: unset | empty | Local (mis-capitalised) | local | gcp | onprem
+#             PROFILE: unset | empty | Local (mis-capitalised) | local | live | gcp | onprem
 #   <PREFIX>_S2S_TOKEN: unset | empty | set
 #       X-Dev-Persona: absent | approver
 #
@@ -365,6 +365,7 @@ for token_label in UNSET EMPTY SET; do
   run_cell "profile EMPTY,               token $token_label" ""      "$token"
   run_cell "profile 'Local' (typo),      token $token_label" "Local" "$token"
   run_cell "profile local (DELIBERATE),  token $token_label" local   "$token"
+  run_cell "profile live (DELIBERATE),   token $token_label" live    "$token"
   run_cell "profile onprem,              token $token_label" onprem  "$token"
 done
 
