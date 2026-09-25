@@ -192,6 +192,14 @@ report it against `hex-service-template`, because it is failing in every repo re
   tool-specific alias the catalog convention forbids, and its prose carries an em-dash that
   `make docs-check` fails on. The gate asserts the flag AND asserts both files are absent, so a
   framework bump that renames the option is caught by the artifact rather than by the spelling.
+- **The console's call is held to the API.** `ui/app/page.tsx` posts the template's
+  `TriageRequest` to `POST /v1/triage`, and says so at the call site. The moment the vertical
+  reshapes that route or its request model, the console can no longer produce a result, and
+  nothing else notices: tsc, the node tests, the build and the hydration check all pass over a
+  page that renders. `tests/unit/test_console_matches_api.py` reads every `fetch(API + ...)` under
+  `ui/app/` and fails the offline gate unless the path and method are served, every required field
+  is sent, and no field the model would silently drop is sent. Consoles across the catalog shipped
+  posting `{ subject, text }` to routes that took an alert id; this is the check that was missing.
 - **If this repo has no user-facing surface, run `make drop-ui`.** It removes the directory, its
   dependabot ecosystem and its CI job together; the gate checks the three for consistency in both
   directions, so half a removal fails the build.
@@ -233,7 +241,11 @@ These are small, and skipping them is how a repo drifts on day one.
    consequential case, redaction, reviewer queue, audit, tamper, exit) and change what each beat
    shows. Add the matching entry to `walkthrough.CHECKS`; the gate fails if you forget.
 5. **Decide about `ui/` now, not later.** Keep it and wire your screens, or run `make drop-ui`.
-   Leaving a half-wired UI is the worst of the three options.
+   Leaving a half-wired UI is the worst of the three options. Wiring means the console calls YOUR
+   routes with YOUR request models, and a user on the local profile can produce a real result
+   with the values it offers: a picker fed by a list endpoint where one exists, otherwise inputs
+   prefilled with seeded fictional values the local adapters answer. The gate enforces the shape
+   (`tests/unit/test_console_matches_api.py`); only a browser run proves the values work.
 6. **Record the repo in the maintainer's system tracker:** set `Implementation status` to
    `Built` and replace `(not built)` with the real remaining gaps from section 3.
 7. **Check the residency story hangs together.** The region reaches Terraform through
