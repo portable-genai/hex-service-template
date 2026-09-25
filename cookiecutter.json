@@ -8,11 +8,11 @@
   "commons_version": "0.0.8",
   "eval_kit_version": "0.0.2",
   "pii_kit_version": "0.0.1",
-  "review_kit_version": "0.0.1",
+  "review_kit_version": "0.0.2",
   "commons_commit": "2cf15351dc968d908697b89237d4b5b42b1870a4",
   "eval_kit_commit": "0d515d736887e5bd4c3026f5c22bffc89afe7281",
   "pii_kit_commit": "654493048a8434d645757cc916bb9d446313688f",
-  "review_kit_commit": "47c05c64fa115d9aa07c0f349be5ec5d807bbe95",
+  "review_kit_commit": "dec72b6437fef1f011e6660734dfd3ff23767a9e",
   "_copy_without_render": [
     "infra/terraform/*.tf",
     "infra/terraform/*.tftest.hcl",
