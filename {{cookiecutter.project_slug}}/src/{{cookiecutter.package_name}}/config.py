@@ -1,7 +1,9 @@
 """Settings + Container: profile-driven dependency injection (the hexagon wiring).
 
 One env var (``{{ cookiecutter.env_prefix }}_PROFILE``) selects the adapter family for every
-port. ``local`` is the SDK-free offline default (dev/test/CI); ``gcp`` is the managed cloud
+port. ``local`` is the SDK-free offline default (dev/test/CI); ``live`` is the same laptop stack
+with any model port bound to a real local open-weight model through the shared
+``hex_service_kit.localmodel`` client; ``gcp`` is the managed cloud
 stack (SDK imports stay lazy so ``local``/``onprem`` import with no cloud SDK installed);
 ``onprem`` is the fail-fast portability placeholder. The dotted ``module:Class`` binding table
 is the single source of truth, exactly like the reference build, and it lives in
@@ -52,6 +54,7 @@ from typing import Any
 
 import yaml
 from hex_service_kit.identity import IdentityPort
+from hex_service_kit.localmodel import LocalModelSettings
 from hex_service_kit.netdefaults import ConfiguredEmptyError, EnvSetting, read_env_setting
 
 from .envread import boolean_setting, setting_or_default
@@ -69,8 +72,16 @@ _REGION = "{{ cookiecutter.region }}"
 DEFAULT_SETTINGS_PATH = Path("config") / "settings.yaml"
 
 LOCAL_PROFILE = "local"
+#: The laptop lane with a real model: every port binds what ``local`` binds except a model port,
+#: which calls the local open-weight model server through ``hex_service_kit.localmodel``. A newly
+#: scaffolded service binds no model port, so here ``live`` binds exactly what ``local`` binds.
+LIVE_PROFILE = "live"
 #: The only profiles this service knows how to bind. Anything else is a configuration error.
-KNOWN_PROFILES: tuple[str, ...] = (LOCAL_PROFILE, "gcp", "onprem")
+KNOWN_PROFILES: tuple[str, ...] = (LOCAL_PROFILE, LIVE_PROFILE, "gcp", "onprem")
+#: The profiles that run on a laptop and take the ``local`` posture: loopback bind, seeded dev
+#: personas, the dev CORS allowlist, interactive docs. ``live`` differs from ``local`` only in
+#: which model answers, so it must not differ in who may reach it.
+LAPTOP_PROFILES: frozenset[str] = frozenset({LOCAL_PROFILE, LIVE_PROFILE})
 #: The profiles whose runtime is a managed cloud, for :attr:`Settings.runtime`. ``onprem`` is
 #: NOT one: its point is that it runs on the adopter's own iron, so the banner says local.
 _MANAGED_PROFILES: frozenset[str] = frozenset({"gcp"})
@@ -82,6 +93,9 @@ _MANAGED_PROFILES: frozenset[str] = frozenset({"gcp"})
 #: rather than a settings string somebody has to remember to update alongside it.
 _GENERATOR_PORT: str = ""
 _GENERATOR_MODEL_ATTR: str = ""
+#: The module path fragment every live model adapter lives under. A generator port bound there
+#: answers from the local model server, so the banner names that model rather than a stub.
+_LIVE_ADAPTERS: str = ".adapters.live."
 
 #: Constant names a managed adapter may declare its model id under. Several spellings because
 #: the fleet uses several, and a resolver that knew only one would report a bound model as
@@ -189,9 +203,12 @@ class ProfileChoice:
 
         These decisions grant something extra to ``local``, so an unconsented run must NOT look
         like ``local``: it gets :data:`UNCONSENTED_PROFILE`, which is no origin's allowlist, no
-        ``X-Dev-Persona`` and HSTS on.
+        ``X-Dev-Persona`` and HSTS on. A deliberate ``live`` reads ``local`` here: it is the same
+        laptop posture with a real model behind the model port (:data:`LAPTOP_PROFILES`).
         """
-        return self.profile if self.explicit else UNCONSENTED_PROFILE
+        if not self.explicit:
+            return UNCONSENTED_PROFILE
+        return LOCAL_PROFILE if self.profile in LAPTOP_PROFILES else self.profile
 
     @property
     def bind_profile(self) -> str:
@@ -201,8 +218,11 @@ class ProfileChoice:
         ``0.0.0.0``, so here an unconsented run must look like ``local`` and stay on loopback.
         Handing :attr:`exposure_profile` to that guard instead would let an unconfigured deploy
         bind every interface, which is the exact inversion this pair of properties prevents.
+        ``live`` is a laptop profile and stays on loopback exactly like ``local``.
         """
-        return self.profile if self.explicit else LOCAL_PROFILE
+        if not self.explicit or self.profile in LAPTOP_PROFILES:
+            return LOCAL_PROFILE
+        return self.profile
 
     @property
     def service_auth_configured(self) -> bool:
@@ -273,26 +293,31 @@ _PKG = "{{ cookiecutter.package_name }}"
 DEFAULT_BINDINGS: dict[str, dict[str, str]] = {
     "audit": {
         "local": f"{_PKG}.adapters.local.audit:LocalAuditAdapter",
+        "live": f"{_PKG}.adapters.local.audit:LocalAuditAdapter",
         "gcp": f"{_PKG}.adapters.gcp.audit:CloudAuditAdapter",
         "onprem": f"{_PKG}.adapters.onprem.audit:OnPremAuditAdapter",
     },
     "identity": {
         "local": f"{_PKG}.adapters.local.identity:LocalIdentityAdapter",
+        "live": f"{_PKG}.adapters.local.identity:LocalIdentityAdapter",
         "gcp": f"{_PKG}.adapters.gcp.identity:IapIdentityAdapter",
         "onprem": f"{_PKG}.adapters.onprem.identity:OnPremIdentityAdapter",
     },
     "review_router": {
         "local": f"{_PKG}.adapters.local.review_router:LocalReviewRouter",
+        "live": f"{_PKG}.adapters.local.review_router:LocalReviewRouter",
         "gcp": f"{_PKG}.adapters.gcp.review_router:CloudReviewRouter",
         "onprem": f"{_PKG}.adapters.onprem.review_router:OnPremReviewRouter",
     },
     "tracer": {
         "local": f"{_PKG}.adapters.local.tracer:LocalNoopTracerAdapter",
+        "live": f"{_PKG}.adapters.local.tracer:LocalNoopTracerAdapter",
         "gcp": f"{_PKG}.adapters.gcp.tracer:CloudTracerAdapter",
         "onprem": f"{_PKG}.adapters.onprem.tracer:OnPremTracerAdapter",
     },
     "evaluation": {
         "local": f"{_PKG}.adapters.local.evaluation:LocalOfflineEvalAdapter",
+        "live": f"{_PKG}.adapters.local.evaluation:LocalOfflineEvalAdapter",
         "gcp": f"{_PKG}.adapters.gcp.evaluation:ManagedEvalGateAdapter",
         "onprem": f"{_PKG}.adapters.onprem.evaluation:OnPremEvalAdapter",
     },
@@ -478,6 +503,10 @@ class Settings:
             # generating, so naming a model would advertise one that never answers.
             if self.profile == "onprem":
                 return "onprem-not-implemented"
+            if _LIVE_ADAPTERS in binding:
+                # A live model adapter answers from the shared local server; name the model the
+                # kit client will call, read through the same three-state setting it reads.
+                return LocalModelSettings.from_env().model
             return "deterministic-offline-stub"
         if _GENERATOR_MODEL_ATTR:
             named = _model_from_settings(self, _GENERATOR_MODEL_ATTR)

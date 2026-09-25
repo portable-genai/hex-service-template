@@ -50,20 +50,26 @@ iap_audience: {{ "${" + cookiecutter.env_prefix + "_IAP_AUDIENCE:-}" }}
 review_url: ${HUMAN_REVIEW_URL:-}
 
 # The per-port adapter map: the ONLY place a binding lives, so switching the whole stack is a
-# configuration change rather than a code edit. Every port must bind every profile; the loader
+# configuration change rather than a code edit. `live` binds what `local` binds; a repo that adds
+# a model port binds its `live` entry to a kit-backed adapter under adapters/live/, which calls the
+# local open-weight model server (LOCAL_MODEL_URL, LOCAL_MODEL) through hex_service_kit.localmodel.
+# Every port must bind every profile; the loader
 # refuses a partial block and `tests/test_settings_file.py` fails the build if this drifts from
 # `config.DEFAULT_BINDINGS`.
 adapters:
   audit:
     local: {{ cookiecutter.package_name }}.adapters.local.audit:LocalAuditAdapter
+    live: {{ cookiecutter.package_name }}.adapters.local.audit:LocalAuditAdapter
     gcp: {{ cookiecutter.package_name }}.adapters.gcp.audit:CloudAuditAdapter
     onprem: {{ cookiecutter.package_name }}.adapters.onprem.audit:OnPremAuditAdapter
   identity:
     local: {{ cookiecutter.package_name }}.adapters.local.identity:LocalIdentityAdapter
+    live: {{ cookiecutter.package_name }}.adapters.local.identity:LocalIdentityAdapter
     gcp: {{ cookiecutter.package_name }}.adapters.gcp.identity:IapIdentityAdapter
     onprem: {{ cookiecutter.package_name }}.adapters.onprem.identity:OnPremIdentityAdapter
   review_router:
     local: {{ cookiecutter.package_name }}.adapters.local.review_router:LocalReviewRouter
+    live: {{ cookiecutter.package_name }}.adapters.local.review_router:LocalReviewRouter
     gcp: {{ cookiecutter.package_name }}.adapters.gcp.review_router:CloudReviewRouter
     onprem: {{ cookiecutter.package_name }}.adapters.onprem.review_router:OnPremReviewRouter
 
@@ -74,6 +80,7 @@ adapters:
   # so onprem is ABSENT rather than fatal, unlike every other onprem placeholder here.
   tracer:
     local: {{ cookiecutter.package_name }}.adapters.local.tracer:LocalNoopTracerAdapter
+    live: {{ cookiecutter.package_name }}.adapters.local.tracer:LocalNoopTracerAdapter
     gcp: {{ cookiecutter.package_name }}.adapters.gcp.tracer:CloudTracerAdapter
     onprem: {{ cookiecutter.package_name }}.adapters.onprem.tracer:OnPremTracerAdapter
 
@@ -81,5 +88,6 @@ adapters:
   # a promotion certified by a laptop with no quality service is certified by nothing.
   evaluation:
     local: {{ cookiecutter.package_name }}.adapters.local.evaluation:LocalOfflineEvalAdapter
+    live: {{ cookiecutter.package_name }}.adapters.local.evaluation:LocalOfflineEvalAdapter
     gcp: {{ cookiecutter.package_name }}.adapters.gcp.evaluation:ManagedEvalGateAdapter
     onprem: {{ cookiecutter.package_name }}.adapters.onprem.evaluation:OnPremEvalAdapter
