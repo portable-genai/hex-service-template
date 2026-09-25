@@ -172,7 +172,11 @@ Hexagonal, ports and adapters:
   calling `ReviewRouterPort.route` is one act. `api/app.py`, `cli/main.py` and `agent/tools.py`
   all route in the same call that produced the result. `tests/unit/test_review_routing.py` is the
   standing gate; a local router that silently did nothing would let a producer ship R8 unwired
-  and green.
+  and green. Every caller hands off through `adapters/controls.py`'s `RecordingReviewRouter`
+  and reports `review_routing` (`routed`, `failed`, `off`, `not_required`), so a failed hand-off
+  is visible rather than failing the result or vanishing. `{{ cookiecutter.env_prefix }}_REVIEW_ROUTING`
+  switches routing (default on); on under the managed profile with no console refuses at boot.
+  A new surface that routes follows the same shape (`tests/unit/test_runtime_control_switches.py`).
 - **The consequential decision is deterministic.** The severity band and the escalation come from
   pure stdlib code and are replayable. An LLM may narrate the result; it may never produce the
   band.

@@ -209,12 +209,16 @@ start_server() {
     exit 1
   fi
   : >"$LOG"
-  flags="-u ${PREFIX}_ALLOW_INSECURE_DEMO"
+  flags="-u ${PREFIX}_ALLOW_INSECURE_DEMO -u ${PREFIX}_REVIEW_ROUTING"
   if [ -n "$CELL_PYPATH_PREFIX" ]; then
     assignments="PYTHONPATH='$CELL_PYPATH_PREFIX:src'"
   else
     assignments="PYTHONPATH=src"
   fi
+  # Every cell names a review console, the way a managed deployment must: with review routing on
+  # (its default, the switch unset above) the managed profile refuses to BOOT without one, and
+  # these cells exercise the exposure guard and identity, not routing.
+  assignments="$assignments HUMAN_REVIEW_URL='https://review.example.test'"
   if [ "$CELL_AUDIENCE" = "UNSET" ]; then
     flags="$flags -u ${PREFIX}_IAP_AUDIENCE"
   else
