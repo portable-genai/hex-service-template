@@ -83,18 +83,19 @@ KNOWN_PROFILES: tuple[str, ...] = (LOCAL_PROFILE, LIVE_PROFILE, "gcp", "onprem")
 #: which model answers, so it must not differ in who may reach it.
 LAPTOP_PROFILES: frozenset[str] = frozenset({LOCAL_PROFILE, LIVE_PROFILE})
 #: The profiles whose runtime is a managed cloud, for :attr:`Settings.runtime`. ``onprem`` is
-#: NOT one: its point is that it runs on the adopter's own iron, so the banner says local.
+#: NOT one: its point is that it runs on the adopter's own iron, so the pill says local.
 _MANAGED_PROFILES: frozenset[str] = frozenset({"gcp"})
 
-#: The port whose ACTIVE binding decides what the provenance banner's model half says, and the
-#: dotted ``Settings`` path holding that model's id. Both are EMPTY here because a newly
-#: scaffolded service binds no generative port: its engine is deterministic and there is no
-#: model to name. A repo that binds one sets these two, and the banner then follows the binding
-#: rather than a settings string somebody has to remember to update alongside it.
+#: The port whose ACTIVE binding decides the model ``generator_model`` reports (the console's
+#: model pill before any answer arrives), and the dotted ``Settings`` path holding the model id
+#: that port's managed adapter CALLS. Both are EMPTY here because a newly scaffolded service
+#: binds no generative port: its engine is deterministic and there is no model to name. A repo
+#: that binds one sets these two, and the pill then follows the binding rather than a settings
+#: string somebody has to remember to update alongside it.
 _GENERATOR_PORT: str = ""
 _GENERATOR_MODEL_ATTR: str = ""
 #: The module path fragment every live model adapter lives under. A generator port bound there
-#: answers from the local model server, so the banner names that model rather than a stub.
+#: answers from the local model server, so the pill names that model rather than a stub.
 _LIVE_ADAPTERS: str = ".adapters.live."
 
 #: Constant names a managed adapter may declare its model id under. Several spellings because
@@ -128,18 +129,11 @@ def _validate_profile(profile: str) -> str:
 def _model_from_settings(settings: object, path: str) -> str:
     """The model id at ``path``, or ``""`` when the deployment has not pinned one.
 
-    Honours the hard-reasoning opt-in where a repository has one. A deployment that flips
-    ``models.use_hard_reasoning`` sends reasoning-tier calls to the stronger model, so a banner
-    that kept naming ``models.reasoning`` would state a model the service is no longer calling.
+    ``path`` must name the setting the managed adapter itself reads for the model it calls
+    (``request.model or <that setting>``). There is deliberately no second, "harder" model a
+    flag could swap in here: a resolver that named a model the adapter never read would put a
+    model on screen that never answered.
     """
-    models = getattr(settings, "models", None)
-    hard_reasoning = getattr(models, "hard_reasoning", "")
-    if (
-        path == "models.reasoning"
-        and getattr(models, "use_hard_reasoning", False)
-        and hard_reasoning
-    ):
-        return str(hard_reasoning)
     value: object = settings
     for part in path.split("."):
         value = getattr(value, part, None)
@@ -470,7 +464,7 @@ class Settings:
 
     @property
     def runtime(self) -> str:
-        """Where this process is running, as the UI banner states it: ``gcp`` or ``local``.
+        """Where this process is running, as the UI's model pill states it: ``gcp`` or ``local``.
 
         Derived from the profile rather than sniffed from the environment. A UI that
         inferred its runtime from ``window.location`` would be right until the day the
@@ -481,7 +475,11 @@ class Settings:
 
     @property
     def generator_model(self) -> str:
-        """WHICH model answers, as the UI banner states it (org decision, 2026-08-30).
+        """WHICH model the bound generator would call, as the UI's model pill first states it.
+
+        The pill shows this until an answer arrives, then the model that ANSWERED
+        (``X-Answered-By``, noted by the adapter itself). So this must be the model the adapter
+        calls: under ``gcp`` the setting its call reads, never a model a flag could swap in.
 
         Read off the BINDING the container will actually build, never kept as a second settings
         string: a string is a claim ABOUT the binding, and the two drift the first time somebody

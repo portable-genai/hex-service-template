@@ -207,6 +207,14 @@ report it against `hex-service-template`, because it is failing in every repo re
   `ui/app/` and fails the offline gate unless the path and method are served, every required field
   is sent, and no field the model would silently drop is sent. Consoles across the catalog shipped
   posting `{ subject, text }` to routes that took an alert id; this is the check that was missing.
+- **Two pills at the top right name the model that ANSWERED, and `Search` when it searched.**
+  `ui/app/ModelPills.tsx` (mounted in `app/layout.tsx`) starts from `generator_model` on
+  `/healthz`, dimmed, then shows the `X-Answered-By` / `X-Search-Used` headers of the console's
+  last answering response through one `window.fetch` wrapper (`lib/answer-provenance.mjs`), and
+  the proxy route forwards both headers. The service emits them from what the model adapters
+  note (`install_answer_provenance` in `api/app.py`). When you add a model port, its adapters
+  NOTE the model they called and any search they attached, and its temperature is optional and
+  pinned only for extraction and classification (CONTRIBUTING.md, the port walkthrough, row 5c).
 - **If this repo has no user-facing surface, run `make drop-ui`.** It removes the directory, its
   dependabot ecosystem and its CI job together; the gate checks the three for consistency in both
   directions, so half a removal fails the build.
