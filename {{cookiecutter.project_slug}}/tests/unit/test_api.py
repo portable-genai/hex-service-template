@@ -53,8 +53,8 @@ def test_healthz_reports_profile_and_region(api_client: TestClient) -> None:
     assert body["region"] == "{{ cookiecutter.region }}"
 
 
-def test_healthz_states_the_provenance_the_ui_banner_renders(api_client: TestClient) -> None:
-    """The service half of the banner contract (org decision, 2026-08-30).
+def test_healthz_states_what_the_model_pill_shows_first(api_client: TestClient) -> None:
+    """What the console's model pill shows until an answer names the model that answered.
 
     The UI must never infer either value. A console that read its runtime from
     ``window.location`` would be right until the deployment served through a proxy and

@@ -3,8 +3,8 @@
 A newly scaffolded service binds no model port, so here ``live`` binds exactly what ``local``
 binds and takes the same laptop posture. The day a repository adds a model port, its ``live``
 entry binds a kit-backed adapter under ``adapters/live/`` (the shared
-``hex_service_kit.localmodel`` client, never a hand-rolled one) and the banner test below is what
-makes the provenance banner name the local model that answers.
+``hex_service_kit.localmodel`` client, never a hand-rolled one) and the test below is what makes
+the console's model pill name the local model it calls before the first answer arrives.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ def test_a_scaffold_with_no_model_port_says_so_under_live() -> None:
 
 
 def test_a_live_model_port_names_the_local_model(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Once a model port is bound to a live adapter, the banner names the model it calls."""
+    """Once a model port is bound to a live adapter, the model pill names the model it calls."""
     monkeypatch.setattr(config, "_GENERATOR_PORT", "llm")
     monkeypatch.setenv("LOCAL_MODEL", "some-org/some-local-model")
     table = {

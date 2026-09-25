@@ -30,11 +30,11 @@
  * **Print shows everything.** A collapsed artifact that prints collapsed is a broken
  * deliverable, so `onbeforeprint` opens every stage.
  *
- * The provenance banner is deliberately NOT part of this: it lives in `app/layout.tsx`
- * outside `children`, so nothing here can collapse, push, or hide it. Keep it there. That
- * placement is structural rather than a convention, because a provenance strip that
- * scrolled off screen is a defect this fleet has already shipped once, in eight consoles,
- * and an auto-collapse over the banner would reintroduce it wholesale.
+ * The model pills are deliberately NOT part of this: they live in `app/layout.tsx` outside
+ * `children`, fixed at the top right, so nothing here can collapse, push, or hide them. Keep
+ * them there. That placement is structural rather than a convention, because a provenance
+ * strip that scrolled off screen is a defect this fleet has already shipped once, in eight
+ * consoles, and an auto-collapse over the pills would reintroduce it wholesale.
  *
  * Usage: give each stage a `ready` flag, ask `activeStage` which one is in focus, and pass
  * the `useStageTakeover` set to every stage. Put FIGURES in each `summary`, never just a
