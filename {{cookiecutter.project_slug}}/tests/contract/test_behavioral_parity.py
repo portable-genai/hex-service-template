@@ -98,8 +98,8 @@ def test_the_managed_family_refuses_rather_than_succeeding_offline(
 # The boundary payload: offline and managed put the SAME bytes on the wire
 # --------------------------------------------------------------------------- #
 def _service(container: Any) -> TriageService:
-    """Both ports the service needs, taken from whichever profile's container."""
-    return TriageService(container.audit, container.tracer)
+    """Every port the service needs, taken from whichever profile's container."""
+    return TriageService(container.audit, container.tracer, container.guardrail)
 
 
 def test_the_offline_outbox_flushes_the_payload_the_managed_router_would_submit() -> None:

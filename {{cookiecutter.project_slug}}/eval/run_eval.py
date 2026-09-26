@@ -49,6 +49,9 @@ from pii_kit import pack_leak
 from {{ cookiecutter.package_name }}.adapters.local.audit import (
     LocalAuditAdapter,
 )
+from {{ cookiecutter.package_name }}.adapters.local.guardrail import (
+    LocalHeuristicGuardrailAdapter,
+)
 from {{ cookiecutter.package_name }}.adapters.local.tracer import (
     LocalNoopTracerAdapter,
 )
@@ -86,8 +89,10 @@ def _mean(scores: list[float]) -> float:
 def _service() -> tuple[TriageService, LocalAuditAdapter]:
     settings = Settings(profile="local", audit_path=":memory:")
     audit = LocalAuditAdapter(settings)
-    # The no-op tracer keeps smoke mode SDK-free and offline, which is the whole point of it.
-    return TriageService(audit, LocalNoopTracerAdapter(settings)), audit
+    # The no-op tracer keeps smoke mode SDK-free and offline, which is the whole point of it;
+    # the heuristic guardrail is likewise the SDK-free stand-in (rule R1).
+    guardrail = LocalHeuristicGuardrailAdapter(settings)
+    return TriageService(audit, LocalNoopTracerAdapter(settings), guardrail), audit
 
 
 # --------------------------------------------------------------------------- #

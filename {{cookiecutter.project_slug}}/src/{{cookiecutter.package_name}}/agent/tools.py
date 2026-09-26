@@ -23,6 +23,7 @@ from pii_kit import redact
 
 from ..adapters.controls import RecordingReviewRouter
 from ..config import Container, Settings, build_container
+from ..domain.errors import GuardrailBlockedError
 from ..domain.models import TriageInput
 from ..domain.pii import PII_PATTERNS
 from ..domain.triage_service import TriageService
@@ -81,11 +82,17 @@ def triage_case(
       goes into a model's context), plus ``review_ref``: where the escalation WENT, and
       ``review_routing``: what happened to the hand-off (``routed``, ``failed``, ``off`` or
       ``not_required``). ``review_ref`` is empty exactly when the result was not routed, so a
-      caller can tell a routed escalation from a flag nobody read.
+      caller can tell a routed escalation from a flag nobody read. When the guardrail blocks
+      either direction of the call (rule R1), the block is already audited and this returns
+      ``{"blocked": True, "reason": <str>}`` instead: never a partial triage.
     """
     container = _container(settings)
     case = TriageInput(subject=subject, text=text)
-    result = TriageService(container.audit, container.tracer).triage(case, actor=actor)
+    service = TriageService(container.audit, container.tracer, container.guardrail)
+    try:
+        result = service.triage(case, actor=actor)
+    except GuardrailBlockedError as exc:
+        return {"blocked": True, "reason": str(exc)}
     routing = RecordingReviewRouter(container.review_router)
     review_ref = routing.route(result, maker=actor, tenant=tenant)
     payload = _redacted(to_jsonable(result))

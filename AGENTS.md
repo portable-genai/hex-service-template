@@ -123,6 +123,13 @@ for a real repo.
   `ReviewRouterPort` bound in all three families. A local adapter that silently did nothing would
   let 31 repos ship with R8 unwired and a green gate, so the local binding uses the kit's outbox
   and `tests/test_review_routing.py` asserts the routing, not the flag.
+- **Rule R1 is wired the same way.** A `GuardrailPort` screens the domain's one generation-shaped
+  step INPUT before it runs and OUTPUT after, bound in all three families (`local` heuristic,
+  `gcp` a regional Model Armor template, `onprem` a fail-fast placeholder). A template that
+  shipped none is exactly what let a quarter of the catalog go without one, invisible to the
+  fleet's own dependency-rule check because it can only see a port that was ADDED and unwired,
+  never one that was never added; `tests/unit/test_guardrail_screening.py` proves a block is
+  audited `Decision.BLOCKED` before the raise reaches the caller.
 - **NOTHING in a rendered repo may depend on the LENGTH of a rendered value, and a matrix proves
   it.** `make lint` is the first step of the rendered gate and of the shared hard-gate workflow,
   and it enforces 100 columns, so a line that fits at `example_agent` (13 characters) can be red

@@ -5,6 +5,9 @@ from __future__ import annotations
 from {{ cookiecutter.package_name }}.adapters.local.audit import (
     LocalAuditAdapter,
 )
+from {{ cookiecutter.package_name }}.adapters.local.guardrail import (
+    LocalHeuristicGuardrailAdapter,
+)
 from {{ cookiecutter.package_name }}.adapters.local.tracer import (
     LocalNoopTracerAdapter,
 )
@@ -25,11 +28,14 @@ from {{ cookiecutter.package_name }}.domain.triage_service import (
 #: These tests are about the audit chain and the scorer, not about tracing, so the
 #: service gets the offline no-op rather than a mock nobody would assert on.
 _NOOP_TRACER = LocalNoopTracerAdapter(Settings(profile="local"))
+#: Likewise for the guardrail: the heuristic adapter, deterministic and benign for every text
+#: this file feeds it (the block path has its own test, tests/unit/test_guardrail_screening.py).
+_GUARDRAIL = LocalHeuristicGuardrailAdapter(Settings(profile="local"))
 
 
 def _service() -> tuple[TriageService, LocalAuditAdapter]:
     audit = LocalAuditAdapter(Settings(profile="local", audit_path=":memory:"))
-    return TriageService(audit, _NOOP_TRACER), audit
+    return TriageService(audit, _NOOP_TRACER, _GUARDRAIL), audit
 
 
 def _severity(text: str) -> Severity:

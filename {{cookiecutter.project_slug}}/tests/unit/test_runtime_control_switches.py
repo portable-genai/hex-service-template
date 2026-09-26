@@ -68,7 +68,8 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 def _result(case=sample_cases.ESCALATING_CASE) -> TriageResult:  # type: ignore[no-untyped-def]
     container = build_container(local_settings())
-    return TriageService(container.audit, container.tracer).triage(case, actor=sample_cases.ACTOR)
+    service = TriageService(container.audit, container.tracer, container.guardrail)
+    return service.triage(case, actor=sample_cases.ACTOR)
 
 
 def _managed(monkeypatch: pytest.MonkeyPatch) -> None:

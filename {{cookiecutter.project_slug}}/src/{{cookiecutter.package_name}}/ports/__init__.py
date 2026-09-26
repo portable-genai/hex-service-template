@@ -18,6 +18,7 @@ from __future__ import annotations
 from hex_service_kit.identity import IdentityPort
 
 from .audit import AuditSinkPort
+from .guardrail import GuardrailPort
 from .identity import (
     CLIENT_ASSERTED,
     END_USER_AUTH_ATTR,
@@ -37,6 +38,7 @@ from .review_router import ReviewRouterPort
 #: port name (the key in the settings ``adapters:`` block) -> the Protocol it must satisfy.
 PORT_PROTOCOLS: dict[str, type] = {
     "audit": AuditSinkPort,
+    "guardrail": GuardrailPort,
     "identity": IdentityPort,
     "review_router": ReviewRouterPort,
     "tracer": ObservabilityTracerPort,
@@ -55,6 +57,7 @@ __all__ = [
     "VERIFIED",
     "AuditSinkPort",
     "EndUserAuthUnavailableError",
+    "GuardrailPort",
     "IdentityPort",
     "ReviewRouterPort",
     "declared_end_user_auth",
