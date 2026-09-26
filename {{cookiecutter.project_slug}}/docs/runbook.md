@@ -188,6 +188,25 @@ carries `review_routing: "failed"` and an empty reference, the failure is logged
 console says the case is not queued for review. Terraform states the switch as
 `review_routing_enabled`.
 
+### Guardrail (rule R1)
+
+`ports/guardrail.py` screens every generation call the domain narrates: the case text INPUT
+before it is scored or narrated, and the narrated summary OUTPUT before it is audited or
+returned (`domain/triage_service.py`). Under `gcp` it calls a regional Model Armor template
+(`config/settings.yaml` `model_armor.template_id`, on the regional host `model_armor.host`,
+never the global endpoint); `infra/terraform/model_armor.tf` creates that template, gated on
+`var.model_armor_full_capabilities` for the malicious-URI filter and multi-language detection,
+which not every region serves. A blocked direction is audited `Decision.BLOCKED` before the
+raise reaches the caller, never a partial triage; the API answers 400, the CLI prints to stderr
+and exits 1, and the agent tool returns `{"blocked": true, "reason": <str>}`.
+
+`{{ cookiecutter.env_prefix }}_GUARDRAIL` switches the guardrail, read in the same three states
+as review routing: unset is on, `true`/`false` (or `on`/`off`) wins, and an emptied or
+unrecognised value refuses at boot. Off binds `DisabledGuardrail`, which allows everything
+unchanged, and logs one warning at startup. With the guardrail on and no Model Armor template
+configured, the managed profile REFUSES TO BOOT. Terraform states the switch as
+`guardrail_enabled`.
+
 ## Supply chain
 Installs come from the committed lockfiles. After changing a dependency run `make lock` and commit
 both files, then `make audit` (`pip-audit` over both locks). CI runs the same audit as a hard

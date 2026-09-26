@@ -22,6 +22,9 @@ from hex_service_kit.audit import AuditChainError
 from {{ cookiecutter.package_name }}.adapters.local.audit import (
     LocalAuditAdapter,
 )
+from {{ cookiecutter.package_name }}.adapters.local.guardrail import (
+    LocalHeuristicGuardrailAdapter,
+)
 from {{ cookiecutter.package_name }}.adapters.local.tracer import (
     LocalNoopTracerAdapter,
 )
@@ -60,7 +63,7 @@ def _record_three(settings: Settings) -> LocalAuditAdapter:
     container = build_container(settings)
     audit = container.audit
     assert isinstance(audit, LocalAuditAdapter)
-    service = TriageService(audit, _NOOP_TRACER)
+    service = TriageService(audit, _NOOP_TRACER, container.guardrail)
     for case in (sample_cases.ESCALATING_CASE, sample_cases.ROUTINE_CASE, sample_cases.PII_CASE):
         service.triage(case, actor=sample_cases.ACTOR)
     return audit
@@ -112,8 +115,9 @@ def test_an_append_after_truncation_cannot_relaunder_the_anchor(tmp_path: Path) 
 
     _truncate_tail(audit)
 
+    guardrail = LocalHeuristicGuardrailAdapter(Settings(profile="local"))
     with pytest.raises(AuditChainError):
-        TriageService(audit, _NOOP_TRACER).triage(
+        TriageService(audit, _NOOP_TRACER, guardrail).triage(
             sample_cases.ESCALATING_CASE, actor=sample_cases.ACTOR
         )
     assert Path(settings.audit_anchor_path).read_text(encoding="utf-8") == anchored_before

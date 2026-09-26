@@ -81,6 +81,13 @@ review console in the same request that produced it, with a `ReviewRouterPort` b
 adapter families, and `tests/unit/test_review_routing.py` fails the build if an escalation stops
 at the `requires_human_review` flag. A rendered repo never owes R8 as a hand addition.
 
+Rule R1 is wired the same way: a `GuardrailPort` screens the domain's one generation-shaped step
+input before it runs and output after, bound in all three adapter families (`local` heuristic,
+`gcp` a regional Model Armor template with `infra/terraform/model_armor.tf` provisioning it,
+`onprem` a fail-fast placeholder), and `tests/unit/test_guardrail_screening.py` fails the build if
+a block is not audited before the raise reaches the caller. A rendered repo never starts with no
+guardrail port to bind its first narration or classification call to.
+
 It is also DEMOABLE on render, not merely green. `scripts/` carries the whole demo surface (the
 scripted arc, a static audit-first renderer, a live click-through server, a presenter-paced
 walkthrough that doubles as the unattended self-test, an executable portability claim and an

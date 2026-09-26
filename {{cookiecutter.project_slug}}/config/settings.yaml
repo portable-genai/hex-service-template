@@ -49,6 +49,16 @@ iap_audience: {{ "${" + cookiecutter.env_prefix + "_IAP_AUDIENCE:-}" }}
 # deliberately distinct from this service's own inbound {{ cookiecutter.env_prefix }}_S2S_TOKEN.
 review_url: ${HUMAN_REVIEW_URL:-}
 
+# Rule R1: the Model Armor template the `gcp` guardrail adapter screens every generation call's
+# input and output through, and the regional host it calls (never the global endpoint, P-05).
+# `template_id` matches the template `infra/terraform/model_armor.tf` creates, so a zero-edit
+# render names a template its own Terraform provisions. Guardrail on ({{ cookiecutter.env_prefix }}_GUARDRAIL, unset means
+# on) under the managed profile REFUSES TO BOOT when template_id is empty and the bound adapter
+# is ModelArmorGuardrailAdapter; {{ cookiecutter.env_prefix }}_GUARDRAIL=off states the guardrail off.
+model_armor:
+  template_id: {{ "${" + cookiecutter.env_prefix + "_MODEL_ARMOR_TEMPLATE:-" + cookiecutter.project_slug + "-guardrail}" }}
+  host: {{ "${" + cookiecutter.env_prefix + "_MODEL_ARMOR_HOST:-modelarmor." + cookiecutter.region + ".rep.googleapis.com}" }}
+
 # The per-port adapter map: the ONLY place a binding lives, so switching the whole stack is a
 # configuration change rather than a code edit. `live` binds what `local` binds; a repo that adds
 # a model port binds its `live` entry to a kit-backed adapter under adapters/live/, which calls the
@@ -62,6 +72,13 @@ adapters:
     live: {{ cookiecutter.package_name }}.adapters.local.audit:LocalAuditAdapter
     gcp: {{ cookiecutter.package_name }}.adapters.gcp.audit:CloudAuditAdapter
     onprem: {{ cookiecutter.package_name }}.adapters.onprem.audit:OnPremAuditAdapter
+  # Rule R1: screens every generation call's input (before) and output (after). local is a
+  # deterministic heuristic stand-in; there is no offline emulator for Model Armor.
+  guardrail:
+    local: {{ cookiecutter.package_name }}.adapters.local.guardrail:LocalHeuristicGuardrailAdapter
+    live: {{ cookiecutter.package_name }}.adapters.local.guardrail:LocalHeuristicGuardrailAdapter
+    gcp: {{ cookiecutter.package_name }}.adapters.gcp.guardrail:ModelArmorGuardrailAdapter
+    onprem: {{ cookiecutter.package_name }}.adapters.onprem.guardrail:OnPremGuardrailAdapter
   identity:
     local: {{ cookiecutter.package_name }}.adapters.local.identity:LocalIdentityAdapter
     live: {{ cookiecutter.package_name }}.adapters.local.identity:LocalIdentityAdapter

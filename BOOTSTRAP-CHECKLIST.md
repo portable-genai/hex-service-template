@@ -69,6 +69,11 @@ report it against `hex-service-template`, because it is failing in every repo re
   `live` entry to a kit-backed `adapters/live/<port>.py` (CONTRIBUTING.md, the port walkthrough).
 - A deterministic domain service, redact-before-audit, citations on every result, and rule R8
   routing on every surface (API, CLI, agent tools).
+- Rule R1 guardrail screening on the domain's one generation-shaped step, INPUT before it runs
+  and OUTPUT after, bound in all three profiles (`local` heuristic, `gcp` Model Armor,
+  `onprem` placeholder); a block is audited `Decision.BLOCKED` before the raise reaches the
+  caller. When you add a real generation or narration port, wrap ITS call the same way, in the
+  domain, not in an adapter (CONTRIBUTING.md, the port walkthrough).
 - Identity as a server-verified `Principal`; the client-asserted actor is discarded everywhere.
 - A hash-chained WORM audit log with an EXTERNAL head anchor, and honest limits written down.
 

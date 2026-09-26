@@ -78,6 +78,7 @@ from ..config import (
     end_user_auth_kind,
     resolve_profile,
 )
+from ..domain.errors import GuardrailBlockedError
 from ..domain.models import TriageInput
 from ..domain.triage_service import TriageService
 from ..ports.identity import VERIFIED, EndUserAuthUnavailableError
@@ -297,13 +298,20 @@ def triage(
     Rule R8: a result that sets ``requires_human_review`` is ROUTED to the human-review-console
     here, in the same request that produced it. Setting the flag is not the escalation; routing is.
     The maker is the verified principal, so the console records who originated the decision.
+
+    Rule R1: the guardrail screens the request text and the narrated summary in both directions
+    (``domain/triage_service.py``). A blocked direction is already audited BLOCKED inside the
+    service and answers 400 here, never a partial triage.
     """
     container = _container()
-    service = TriageService(container.audit, container.tracer)
-    result = service.triage(
-        TriageInput(subject=request.subject, text=request.text),
-        actor=principal.actor,
-    )
+    service = TriageService(container.audit, container.tracer, container.guardrail)
+    try:
+        result = service.triage(
+            TriageInput(subject=request.subject, text=request.text),
+            actor=principal.actor,
+        )
+    except GuardrailBlockedError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     # The hand-off never fails an already-scored, already-audited triage; the response says
     # what happened to it instead (the fleet's runtime-control contract).
     routing = RecordingReviewRouter(container.review_router)

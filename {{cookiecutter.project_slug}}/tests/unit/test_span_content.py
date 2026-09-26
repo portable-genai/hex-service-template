@@ -21,6 +21,9 @@ from contextlib import contextmanager
 from {{ cookiecutter.package_name }}.adapters.local.audit import (
     LocalAuditAdapter,
 )
+from {{ cookiecutter.package_name }}.adapters.local.guardrail import (
+    LocalHeuristicGuardrailAdapter,
+)
 from {{ cookiecutter.package_name }}.config import (
     Settings,
 )
@@ -60,7 +63,8 @@ class _RecordingTracer:
 def _triage() -> _RecordingTracer:
     tracer = _RecordingTracer()
     audit = LocalAuditAdapter(Settings(profile="local", audit_path=":memory:"))
-    service = TriageService(audit, tracer)  # type: ignore[arg-type]
+    guardrail = LocalHeuristicGuardrailAdapter(Settings(profile="local"))
+    service = TriageService(audit, tracer, guardrail)  # type: ignore[arg-type]
     service.triage(TriageInput("ACME (FICTIONAL)", _CASE_TEXT), actor=_ACTOR)
     return tracer
 
