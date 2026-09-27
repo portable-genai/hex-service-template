@@ -7,10 +7,16 @@ result escalates softly to a human (P-06) rather than auto-executing.
 
 Rule R1: the guardrail screens BOTH directions of the one generation call this service makes,
 the narrated ``summary`` (a fork that replaces the deterministic string below with a real model
-call inherits this screening unchanged, because it wraps the STEP, not the string): the case
-text is screened INPUT before it is scored or narrated at all, and the narrated summary is
-screened OUTPUT before it is audited or returned. A blocked direction is audited
-``Decision.BLOCKED`` and raises :class:`~.errors.GuardrailBlockedError`, never a partial result.
+call inherits this screening unchanged, because it wraps the STEP, not the string). INPUT: every
+caller-supplied field, the case subject as well as its text, is screened before it is scored or
+narrated at all, because the subject reaches the summary, the citation and the audit record
+exactly as the text does. OUTPUT: the narrated summary is screened before it is audited or
+returned. The text each screen hands back is the text used from then on, exactly as given.
+
+A blocked direction is audited ``Decision.BLOCKED`` and raises
+:class:`~.errors.GuardrailBlockedError`, never a partial result. A guardrail that cannot decide
+(its backend errored or timed out) fails CLOSED the same way: the refusal is audited BLOCKED
+when the audit sink can take it, and the guardrail's own error then reaches the caller.
 """
 
 from __future__ import annotations
@@ -58,29 +64,27 @@ class TriageService:
 
     def _triage(self, case: TriageInput, *, actor: str) -> TriageResult:
         # 1) Guardrail screen (INPUT), before the case is scored or narrated at all (rule R1).
-        in_verdict: GuardrailVerdict = self._guardrail.screen(case.text, Direction.INPUT)
-        if not in_verdict.allowed:
-            self._audit_blocked(actor, case.subject, Severity.LOW, in_verdict)
-            raise GuardrailBlockedError(in_verdict.reason or "triage input blocked by guardrail")
+        # Nothing has been scored yet, so a refusal here records NO severity rather than a band
+        # nothing produced, and no subject, because the subject may be the very thing refused.
+        subject = self._screen(case.subject, Direction.INPUT, actor=actor)
+        text = self._screen(case.text, Direction.INPUT, actor=actor)
 
-        severity = self._severity(case.text)
+        severity = self._severity(text)
         escalate = severity in (Severity.HIGH, Severity.CRITICAL)
         decision = Decision.ESCALATED if escalate else Decision.ALLOWED
-        summary = f"{case.subject}: triaged {severity.value}"
+        narrated = f"{subject}: triaged {severity.value}"
 
         # 2) Guardrail screen (OUTPUT) on the narrated summary, before it is audited or returned.
-        # This is the step a real generation call replaces `summary` above at: the screen stays
+        # This is the step a real generation call replaces `narrated` above at: the screen stays
         # in exactly this place regardless of what produces the text.
-        out_verdict: GuardrailVerdict = self._guardrail.screen(summary, Direction.OUTPUT)
-        if not out_verdict.allowed:
-            self._audit_blocked(actor, case.subject, severity, out_verdict)
-            raise GuardrailBlockedError(out_verdict.reason or "triage output blocked by guardrail")
-        summary = out_verdict.sanitized_text or summary
+        summary = self._screen(
+            narrated, Direction.OUTPUT, actor=actor, subject=subject, severity=severity
+        )
 
         citation = Citation(
-            source_id=f"case:{case.subject}",
+            source_id=f"case:{subject}",
             title="Case description",
-            snippet=case.text[:80],
+            snippet=text[:80],
         )
 
         # Redact BEFORE the audit write: the raw identifiers never reach the WORM record.
@@ -90,14 +94,14 @@ class TriageService:
                 actor=actor,
                 decision=decision,
                 severity=severity,
-                redacted_summary=redact(f"{summary} :: {case.text}", PII_PATTERNS),
+                redacted_summary=redact(f"{summary} :: {text}", PII_PATTERNS),
                 citations=(citation,),
                 timestamp=utcnow(),
             )
         )
 
         return TriageResult(
-            subject=case.subject,
+            subject=subject,
             severity=severity,
             decision=decision,
             summary=summary,
@@ -105,26 +109,62 @@ class TriageService:
             citations=(citation,),
         )
 
-    def _audit_blocked(
-        self, actor: str, subject: str, severity: Severity, verdict: GuardrailVerdict
-    ) -> None:
-        """Audit a guardrail block BEFORE the raise reaches the caller (rule R1/R2).
+    def _screen(
+        self,
+        text: str,
+        direction: Direction,
+        *,
+        actor: str,
+        subject: str | None = None,
+        severity: Severity | None = None,
+    ) -> str:
+        """Screen one text in one direction; return the text to use from here on, or refuse.
 
-        Never carries the blocked text: only that a block happened, in which direction, and
-        why. A blocked attempt is a security-relevant event the WORM trail must hold even
-        though the request as a whole never produced a triage.
+        The returned text is the verdict's ``sanitized_text`` exactly as given, including an
+        empty string: a screen that redacted everything has not asked for the original back.
+        A block, and a guardrail that raised instead of deciding, both fail closed after an
+        audited BLOCKED record. ``subject`` and ``severity`` are what the record may state,
+        and each is ``None`` where it was not (yet) screened or scored.
         """
+        try:
+            verdict: GuardrailVerdict = self._guardrail.screen(text, direction)
+        except Exception as exc:
+            reason = f"guardrail unavailable ({type(exc).__name__})"
+            try:
+                self._audit_blocked(actor, direction, reason, subject=subject, severity=severity)
+            except Exception as audit_exc:
+                exc.add_note(f"the BLOCKED audit record could not be written: {audit_exc!r}")
+            raise
+        if not verdict.allowed or verdict.sanitized_text is None:
+            reason = verdict.reason or f"triage {direction.value} blocked by guardrail"
+            self._audit_blocked(actor, direction, reason, subject=subject, severity=severity)
+            raise GuardrailBlockedError(reason)
+        return verdict.sanitized_text
+
+    def _audit_blocked(
+        self,
+        actor: str,
+        direction: Direction,
+        reason: str,
+        *,
+        subject: str | None,
+        severity: Severity | None,
+    ) -> None:
+        """Audit a guardrail refusal BEFORE the raise reaches the caller (rule R1/R2).
+
+        Never carries the refused text: only that a refusal happened, in which direction, and
+        why, plus the subject once it has itself passed the INPUT screen. A refused attempt is a
+        security-relevant event the WORM trail must hold even though the request as a whole
+        never produced a triage.
+        """
+        what = f"{subject}: blocked" if subject is not None else "blocked"
         self._audit.record(
             AuditEvent(
                 action="triage",
                 actor=actor,
                 decision=Decision.BLOCKED,
                 severity=severity,
-                redacted_summary=redact(
-                    f"{subject}: blocked ({verdict.direction.value}): "
-                    f"{verdict.reason or 'guardrail block'}",
-                    PII_PATTERNS,
-                ),
+                redacted_summary=redact(f"{what} ({direction.value}): {reason}", PII_PATTERNS),
                 citations=(),
                 timestamp=utcnow(),
             )

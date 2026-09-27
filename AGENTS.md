@@ -90,7 +90,10 @@ It renders the template FOUR TIMES, once per row of its name-length matrix, and 
 verification on each: `make lint`, then `ruff` + `ruff format --check` + `mypy src` + `pytest` +
 `python eval/run_eval.py`, THEN the socket-level exposure matrix, the pin object-type check, the
 demo self-test, the portability tour, the static render, the documentation checks and the ui
-policy tests, THEN the whole thing again with `ui/` removed. Each render installs the four
+policy tests, THEN the whole thing again with `ui/` removed. Each row also runs `lint-gcp` (mypy
+against a venv installed from the rendered `requirements-gcp.lock`, outside the render, cold
+cache) and `tests/unit/test_model_armor_mapping.py` in that venv with its require flag set, so a
+cloud SDK an adapter imports but the render never declares cannot merge green. Each render installs the four
 commons packages at the commits `cookiecutter.json` pins, from fresh clones (so the answer is the
 same on a laptop and in CI, and a pin naming a commit GitHub does not have fails), and the
 rendered repo with `--no-deps`. All rows must pass. It shells out to `uvx --from cookiecutter
@@ -129,7 +132,10 @@ for a real repo.
   shipped none is exactly what let a quarter of the catalog go without one, invisible to the
   fleet's own dependency-rule check because it can only see a port that was ADDED and unwired,
   never one that was never added; `tests/unit/test_guardrail_screening.py` proves a block is
-  audited `Decision.BLOCKED` before the raise reaches the caller.
+  audited `Decision.BLOCKED` before the raise reaches the caller. INPUT covers every
+  caller-supplied field (the subject as well as the text). The Model Armor adapter decides by
+  the filter state's enum NAME (`str()` of a proto-plus `IntEnum` is its number on 3.11+), and
+  fails closed on a match, an absent result, an API error and its deadline.
 - **NOTHING in a rendered repo may depend on the LENGTH of a rendered value, and a matrix proves
   it.** `make lint` is the first step of the rendered gate and of the shared hard-gate workflow,
   and it enforces 100 columns, so a line that fits at `example_agent` (13 characters) can be red

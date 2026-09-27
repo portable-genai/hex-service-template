@@ -21,11 +21,16 @@ from ..domain.kernel import Direction, GuardrailVerdict
 @runtime_checkable
 class GuardrailPort(Protocol):
     def screen(self, text: str, direction: Direction) -> GuardrailVerdict:
-        """Screen inbound prompt or outbound response text; may sanitise it in place.
+        """Screen inbound prompt or outbound response text; may sanitise it.
 
         Never raises on a policy match: a block is reported as ``GuardrailVerdict(allowed=False,
-        ...)`` so the caller can audit the attempt before deciding how to fail. Raising is
-        reserved for the adapter being unable to reach its backend at all (the managed family
-        with no template configured, or the on-prem placeholder).
+        ...)`` so the caller can audit the attempt before deciding how to fail. An allowed verdict
+        carries ``sanitized_text``, the text the caller uses from then on EXACTLY as given (the
+        input unchanged when nothing was redacted, possibly empty when everything was); the
+        caller never falls back to the unscreened original.
+
+        Raising is reserved for the adapter being unable to decide at all: its backend errored
+        or timed out, no template is configured, or the on-prem placeholder is bound. The domain
+        treats every such raise as a refusal (fail closed), audits it, and lets it propagate.
         """
         ...

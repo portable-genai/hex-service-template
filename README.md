@@ -85,7 +85,11 @@ Rule R1 is wired the same way: a `GuardrailPort` screens the domain's one genera
 input before it runs and output after, bound in all three adapter families (`local` heuristic,
 `gcp` a regional Model Armor template with `infra/terraform/model_armor.tf` provisioning it,
 `onprem` a fail-fast placeholder), and `tests/unit/test_guardrail_screening.py` fails the build if
-a block is not audited before the raise reaches the caller. A rendered repo never starts with no
+a block is not audited before the raise reaches the caller. Both caller-supplied fields, the case
+subject and its text, are screened on input. The managed adapter fails closed: it allows only on
+an explicit `NO_MATCH_FOUND`, calls with a deadline, and lets an API error refuse the request;
+`google-cloud-modelarmor` is declared in the `[gcp]` extra and pinned in `requirements-gcp.lock`,
+and `tests/unit/test_model_armor_mapping.py` drives the mapping with the SDK's real enum types. A rendered repo never starts with no
 guardrail port to bind its first narration or classification call to.
 
 It is also DEMOABLE on render, not merely green. `scripts/` carries the whole demo surface (the
@@ -203,7 +207,10 @@ for each render installs the four commons at the commits `cookiecutter.json` pin
 so a laptop and CI get the same answer) and runs `make lint` and `make plugin` by NAME and then
 the full offline gate on the output, THEN the socket-level exposure matrix, the demo self-test,
 the portability tour, the static render and the documentation checks, THEN the whole gate again
-with `ui/` removed. The two targets are run by name for the same reason: a unit test exercises
+with `ui/` removed. Each row also runs `lint-gcp` on the render: the gate's mypy pointed at a venv
+installed from the rendered `requirements-gcp.lock`, the check the fleet's `lint-gcp` job runs, so
+an adapter importing a cloud SDK the render never declared fails here rather than in a deployed
+image; and the Model Armor mapping tests in that venv, required to PASS rather than skip. The two targets are run by name for the same reason: a unit test exercises
 the renderer, but only the target proves the make wiring and the module path it names, and
 `make plugin` is also the only place the skills-less, server-less render is executed, which is
 the state every new repo starts in. Every row must be green. Run it after editing any template

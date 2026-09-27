@@ -64,9 +64,12 @@ class GuardrailFinding:
 class GuardrailVerdict:
     """What a guardrail screen decided about one direction of one generation call.
 
-    ``sanitized_text`` is the text to use going forward when ``allowed`` is True (it may equal
-    the input unchanged); it is ``None`` when the call is blocked, because a blocked call has no
-    safe text to substitute.
+    ``sanitized_text`` is the text to use going forward when ``allowed`` is True: it may equal
+    the input unchanged, and it may be SHORTER or EMPTY when the screen redacted it, and the
+    caller uses it exactly as given, never falling back to the unscreened original. It is
+    ``None`` when the call is blocked, because a blocked call has no safe text to substitute.
+    Both halves are enforced at construction, so a verdict that is allowed with no text (or
+    blocked with some) cannot exist for a caller to misread.
     """
 
     allowed: bool
@@ -74,6 +77,15 @@ class GuardrailVerdict:
     findings: tuple[GuardrailFinding, ...] = ()
     sanitized_text: str | None = None
     reason: str = ""
+
+    def __post_init__(self) -> None:
+        if self.allowed and self.sanitized_text is None:
+            raise ValueError(
+                "an allowed GuardrailVerdict must carry the text to use going forward "
+                "(sanitized_text, the input unchanged when nothing was redacted)"
+            )
+        if not self.allowed and self.sanitized_text is not None:
+            raise ValueError("a blocked GuardrailVerdict carries no sanitized_text")
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,12 +99,17 @@ class Citation:
 
 @dataclass(frozen=True, slots=True)
 class AuditEvent:
-    """An immutable, already-redacted record of one interaction (P-04 / rule R2)."""
+    """An immutable, already-redacted record of one interaction (P-04 / rule R2).
+
+    ``severity`` is ``None`` only on a record for a request that was never scored: an INPUT
+    blocked (or left undecided) by the guardrail before the severity was computed. Recording a
+    band there would state a score nothing produced.
+    """
 
     action: str
     actor: str
     decision: Decision
-    severity: Severity
+    severity: Severity | None
     redacted_summary: str
     citations: tuple[Citation, ...] = ()
     timestamp: datetime = field(default_factory=utcnow)
