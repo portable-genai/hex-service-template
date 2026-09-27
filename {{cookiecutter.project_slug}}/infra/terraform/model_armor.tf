@@ -81,6 +81,14 @@ resource "google_model_armor_template" "guardrail" {
       }
     }
 
+    # Stated false, which is also the API default, so nothing here asks the service to treat a
+    # screen where some filters were skipped or failed as complete. The application does not
+    # rely on this flag either way: adapters/gcp/guardrail.py allows only when
+    # invocation_result is SUCCESS, so a PARTIAL or FAILURE screen (a filter past its token
+    # limit, an unsupported language with multi-language detection off, a detector error) is
+    # refused even when it reports no match.
+    ignore_partial_invocation_failures = false
+
     # OFF, and this is the decision rather than the default. Sanitize-operation logs carry the
     # prompt/response text that was screened; the WORM audit trail (logging_worm.tf) already
     # records what the domain narrated, under this stack's own retention, so a second copy of

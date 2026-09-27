@@ -332,7 +332,15 @@ verify_one_render() {
   # skips where the SDK is absent, which is the SDK-free `make gate`, so here the flag turns a
   # missing SDK into an error and the run is asserted to have PASSED, as for the IAP matrix.
   echo "== the Model Armor mapping, real modelarmor_v1 types, no network =="
-  uv pip install --quiet --python "$runtime/bin/python" pytest
+  # pytest and its own dependencies at the DEV lock's pins, with --no-deps, so this step can only
+  # change when a lockfile does: an unpinned install resolved whatever pytest was newest that day.
+  local pytest_pins="$WORK/$label-pytest-pins.txt"
+  grep -E '^(pytest|pluggy|iniconfig|packaging|pygments)==' requirements-dev.lock > "$pytest_pins"
+  if [ "$(wc -l < "$pytest_pins")" -ne 5 ]; then
+    echo "   FAILED: requirements-dev.lock does not pin pytest and its four dependencies" >&2
+    return 1
+  fi
+  uv pip install --quiet --python "$runtime/bin/python" --no-deps -r "$pytest_pins"
   local armor_check armor_status
   set +e
   armor_check="$(env "${prefix}_REQUIRE_MODEL_ARMOR_SDK=1" \

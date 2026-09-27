@@ -200,8 +200,10 @@ never the global endpoint); `infra/terraform/model_armor.tf` creates that templa
 which not every region serves: `asia-southeast1` refuses the malicious-URI filter, so a
 deployment there sets `model_armor_full_capabilities = false` (see `terraform.tfvars.example`).
 
-The managed guardrail fails CLOSED. It allows only on an explicit `NO_MATCH_FOUND`; a match, an
-absent or undecided result, and any API error all refuse, and every call carries a deadline
+The managed guardrail fails CLOSED. It allows only on an explicit `NO_MATCH_FOUND` from a screen
+where every filter ran (`invocation_result` `SUCCESS`); a match, an absent or undecided result, a
+`PARTIAL` or `FAILURE` screen (a filter skipped for size or language, or erroring, reports no
+match), and any API error all refuse, and every call carries a deadline
 (`model_armor.timeout_seconds`, 10 s by default) so a stalled backend refuses rather than hangs.
 A blocked direction is audited `Decision.BLOCKED` before the raise reaches the caller, never a
 partial triage; a guardrail that raised instead of deciding is audited `BLOCKED` with
