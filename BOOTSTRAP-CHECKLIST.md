@@ -235,8 +235,9 @@ report it against `hex-service-template`, because it is failing in every repo re
 - `configure_logging` is called for you in `api/app.py` and the CLI. Use `logging.getLogger(
   __name__)` and log freely; only the allowlisted extras (`tenant`, `actor`, `correlation_id`)
   reach the sink, so an accidental `extra={"prompt": ...}` cannot leak.
-- Where spans GO is deployment configuration, not code: `OTEL_EXPORTER_OTLP_ENDPOINT` set means
-  OTLP to the `agent-observability` collector, unset means straight to Cloud Trace. Do not add a profile for it.
+- Spans GO to the `agent-observability` collector named by `OTEL_EXPORTER_OTLP_ENDPOINT`, which
+  redacts GenAI content. Unset or empty, the `gcp` tracer refuses to build: there is no direct
+  Cloud Trace path. Do not add a profile for it.
 
 ### Documents
 - `SPEC.md` > `ARCHITECTURE.md` > `COMPLIANCE.md` > `README.md` (the declared authority order),
