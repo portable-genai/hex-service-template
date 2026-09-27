@@ -6,14 +6,23 @@ Every inbound prompt and outbound response the domain narrates is screened via
 ``model_armor.host``, pinned for residency, P-05), with an explicit per-call deadline
 (``model_armor.timeout_seconds``) so a stalled backend refuses the request instead of holding it.
 
-FAIL CLOSED, in all three places it can go wrong:
+FAIL CLOSED, in every place it can go wrong:
 
-- the verdict is ALLOWED only when ``filter_match_state`` is ``NO_MATCH_FOUND``, read by the
-  enum member's ``.name``. ``str()`` of the proto-plus ``IntEnum`` is its number (``"2"``) on
-  Python 3.11 and later, so a substring test over it never saw ``MATCH_FOUND`` and allowed
-  everything. ``MATCH_FOUND`` blocks, and so does an absent or empty sanitization result
-  (proto-plus hands back an empty message, whose state is ``FILTER_MATCH_STATE_UNSPECIFIED``):
-  a screen that did not say "no match" has not said "allowed";
+- the verdict is ALLOWED only when ``filter_match_state`` is ``NO_MATCH_FOUND`` AND
+  ``invocation_result`` is ``SUCCESS``, each read by the enum member's ``.name``. ``str()`` of a
+  proto-plus ``IntEnum`` is its number (``"2"``) on Python 3.11 and later, so a substring test
+  over it never saw ``MATCH_FOUND`` and allowed everything. ``MATCH_FOUND`` blocks, and so does
+  an absent or empty sanitization result (proto-plus hands back an empty message, whose state is
+  ``FILTER_MATCH_STATE_UNSPECIFIED``): a screen that did not say "no match" has not said
+  "allowed";
+- ``invocation_result`` is set independently of the match state. ``PARTIAL`` (some filters were
+  skipped or failed) and ``FAILURE`` (all of them were) arrive WITH ``NO_MATCH_FOUND``, because
+  a skipped filter reports ``EXECUTION_SKIPPED`` and no match. A filter skips when the text
+  exceeds its token limit, when the language is unsupported (multi-language detection is off
+  wherever ``var.model_armor_full_capabilities`` is false), or when a detector errors. "No
+  match" from a screen that did not run is not a clean pass, so anything short of ``SUCCESS``
+  blocks, and padding a prompt past the prompt-injection filter's limit gets it refused rather
+  than through unscreened;
 - an API error, including the deadline, propagates to the domain, which audits the refusal and
   fails the request.
 
@@ -33,6 +42,8 @@ from ...domain.kernel import Direction, GuardrailCategory, GuardrailFinding, Gua
 #: The one filter state that allows. Compared against the enum member's NAME, never str().
 _NO_MATCH = "NO_MATCH_FOUND"
 _MATCH = "MATCH_FOUND"
+#: The one invocation result that allows: every configured filter ran. Also compared by NAME.
+_ALL_FILTERS_RAN = "SUCCESS"
 
 
 class ModelArmorGuardrailAdapter:
@@ -91,21 +102,26 @@ class ModelArmorGuardrailAdapter:
 
     @staticmethod
     def _map_result(response: Any, direction: Direction, original: str) -> GuardrailVerdict:
-        """Map a sanitize response to a verdict: allowed ONLY on an explicit NO_MATCH_FOUND.
+        """Map a sanitize response to a verdict: allowed ONLY on a complete, clean screen.
 
-        Model Armor reports a decision, not a rewrite, for these filters, so an allowed verdict
-        carries the screened text unchanged.
+        Complete means ``invocation_result`` is ``SUCCESS``; clean means ``filter_match_state``
+        is ``NO_MATCH_FOUND``. Model Armor reports a decision, not a rewrite, for these filters,
+        so an allowed verdict carries the screened text unchanged.
         """
         result = getattr(response, "sanitization_result", None)
-        state = getattr(result, "filter_match_state", None)
-        name = getattr(state, "name", None)
-        if name == _NO_MATCH:
+        name = getattr(getattr(result, "filter_match_state", None), "name", None)
+        invocation = getattr(getattr(result, "invocation_result", None), "name", None)
+        if name == _NO_MATCH and invocation == _ALL_FILTERS_RAN:
             return GuardrailVerdict(
                 allowed=True, direction=direction, sanitized_text=original, reason="ok"
             )
         if name == _MATCH:
+            # A match is a match however many filters ran: the block needs no complete screen.
             reason = "blocked by Model Armor"
             detail = "Model Armor filter match"
+        elif name == _NO_MATCH:
+            reason = "blocked: Model Armor returned no complete filter decision"
+            detail = f"invocation_result={invocation or 'absent'}: not every filter ran"
         else:
             reason = "blocked: Model Armor returned no filter decision"
             detail = f"filter_match_state={name or 'absent'}"

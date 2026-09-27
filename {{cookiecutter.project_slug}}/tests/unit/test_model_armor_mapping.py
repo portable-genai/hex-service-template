@@ -5,8 +5,10 @@ decides whether anything is ever blocked, and it used to be proved by nothing: t
 ``str(filter_match_state)`` and looked for ``MATCH_FOUND`` in it. ``filter_match_state`` is a
 proto-plus ``IntEnum``, and from Python 3.11 ``str()`` of an ``IntEnum`` member is its NUMBER,
 so the string was ``"2"``, the test never matched, and every prompt was allowed. A test built
-on a hand-written stand-in for the enum would have passed over exactly that defect, which is
-why every response here is built from the SDK's own message and enum types.
+on a plain-string stand-in for the enum would have passed over exactly that defect, which is
+why every response here is built from the SDK's own message and enum types. The SDK-free half,
+``test_model_armor_verdict_mirror.py``, uses ``IntEnum`` mirrors whose ``str()`` behaves the same
+way, and this module pins those mirrors to the real enums.
 
 Only the transport is replaced: a recording client that returns a real response message, or
 raises a real ``google.api_core`` error, in place of the network call.
@@ -34,6 +36,7 @@ from {{ cookiecutter.package_name }}.domain.models import TriageInput
 from {{ cookiecutter.package_name }}.domain.triage_service import TriageService
 
 from tests.conftest import local_settings
+from tests.fixtures import model_armor_enums
 
 #: Set to "1" wherever the runtime lockfile IS installed, so absence is an error, not a skip.
 #: An exact-match read: unset, emptied and "0" all mean "not required".
@@ -57,28 +60,53 @@ except ImportError as exc:  # pragma: no cover - exercised by whichever gate lac
     )
 
 _STATE = modelarmor_v1.FilterMatchState
+_INVOCATION = modelarmor_v1.InvocationResult
 _TEXT = "Acme (FICTIONAL): a routine note"
 
 
-def _prompt_response(state: Any | None) -> Any:
-    if state is None:
-        return modelarmor_v1.SanitizeUserPromptResponse()
-    return modelarmor_v1.SanitizeUserPromptResponse(
-        sanitization_result=modelarmor_v1.SanitizationResult(filter_match_state=state)
+def _result(state: Any, invocation: Any, *, skipped: bool = False) -> Any:
+    """A real SanitizationResult; ``skipped`` adds the PI/jailbreak filter as not having run."""
+    filter_results = {}
+    if skipped:
+        filter_results["pi_and_jailbreak"] = modelarmor_v1.FilterResult(
+            pi_and_jailbreak_filter_result=modelarmor_v1.PiAndJailbreakFilterResult(
+                execution_state=modelarmor_v1.FilterExecutionState.EXECUTION_SKIPPED,
+                match_state=_STATE.NO_MATCH_FOUND,
+            )
+        )
+    return modelarmor_v1.SanitizationResult(
+        filter_match_state=state, invocation_result=invocation, filter_results=filter_results
     )
 
 
-def _model_response(state: Any) -> Any:
+def _prompt_response(
+    state: Any | None, invocation: Any = _INVOCATION.SUCCESS, *, skipped: bool = False
+) -> Any:
+    if state is None:
+        return modelarmor_v1.SanitizeUserPromptResponse()
+    return modelarmor_v1.SanitizeUserPromptResponse(
+        sanitization_result=_result(state, invocation, skipped=skipped)
+    )
+
+
+def _model_response(state: Any, invocation: Any = _INVOCATION.SUCCESS) -> Any:
     return modelarmor_v1.SanitizeModelResponseResponse(
-        sanitization_result=modelarmor_v1.SanitizationResult(filter_match_state=state)
+        sanitization_result=_result(state, invocation)
     )
 
 
 class _RecordingClient:
     """Stands in for the transport only: records each request, answers a real message."""
 
-    def __init__(self, state: Any | None = None, *, error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        state: Any | None = None,
+        *,
+        invocation: Any = _INVOCATION.SUCCESS,
+        error: Exception | None = None,
+    ) -> None:
         self.state = state
+        self.invocation = invocation
         self.error = error
         self.calls: list[tuple[str, Any, Any]] = []
 
@@ -86,13 +114,13 @@ class _RecordingClient:
         self.calls.append(("sanitize_user_prompt", request, timeout))
         if self.error is not None:
             raise self.error
-        return _prompt_response(self.state)
+        return _prompt_response(self.state, self.invocation)
 
     def sanitize_model_response(self, *, request: Any, timeout: Any = None) -> Any:
         self.calls.append(("sanitize_model_response", request, timeout))
         if self.error is not None:
             raise self.error
-        return _model_response(self.state)
+        return _model_response(self.state, self.invocation)
 
 
 def _adapter(client: _RecordingClient) -> ModelArmorGuardrailAdapter:
@@ -106,6 +134,19 @@ def test_str_of_the_real_enum_does_not_carry_its_name() -> None:
     """Why the adapter reads ``.name``: a substring test over ``str()`` can never match."""
     assert "MATCH_FOUND" not in str(_STATE.MATCH_FOUND)
     assert _STATE.MATCH_FOUND.name == "MATCH_FOUND"
+
+
+@pytest.mark.parametrize(
+    ("mirror", "real"),
+    [
+        (model_armor_enums.FilterMatchState, _STATE),
+        (model_armor_enums.InvocationResult, _INVOCATION),
+    ],
+    ids=["FilterMatchState", "InvocationResult"],
+)
+def test_the_sdk_free_mirrors_match_the_real_enums(mirror: Any, real: Any) -> None:
+    """The SDK-free half proves the mapping against these mirrors; they may not drift."""
+    assert {m.name: int(m) for m in mirror} == {m.name: int(m) for m in real}
 
 
 # --------------------------------------------------------------------------- #
@@ -128,6 +169,33 @@ def test_no_match_found_allows_the_text_unchanged() -> None:
     assert verdict.allowed is True
     assert verdict.sanitized_text == _TEXT
     assert verdict.findings == ()
+
+
+@pytest.mark.parametrize(
+    "invocation",
+    [_INVOCATION.PARTIAL, _INVOCATION.FAILURE, _INVOCATION.INVOCATION_RESULT_UNSPECIFIED],
+    ids=["PARTIAL", "FAILURE", "UNSPECIFIED"],
+)
+def test_no_match_from_a_screen_where_filters_did_not_run_blocks(invocation: Any) -> None:
+    """The skipped-filter response a padded prompt produces: no match, because nothing ran.
+
+    Model Armor sets ``invocation_result`` independently of the match state, and a filter
+    that skipped (input past its token limit, an unsupported language, a detector error)
+    reports ``EXECUTION_SKIPPED`` with ``NO_MATCH_FOUND``.
+    """
+    verdict = ModelArmorGuardrailAdapter._map_result(
+        _prompt_response(_STATE.NO_MATCH_FOUND, invocation, skipped=True), Direction.INPUT, _TEXT
+    )
+    assert verdict.allowed is False
+    assert verdict.sanitized_text is None
+    assert "no complete filter decision" in verdict.reason
+
+
+def test_an_incomplete_output_screen_blocks_through_screen() -> None:
+    client = _RecordingClient(_STATE.NO_MATCH_FOUND, invocation=_INVOCATION.PARTIAL)
+    verdict = _adapter(client).screen(_TEXT, Direction.OUTPUT)
+    assert verdict.allowed is False
+    assert [call[0] for call in client.calls] == ["sanitize_model_response"]
 
 
 @pytest.mark.parametrize(
@@ -223,7 +291,9 @@ def test_no_match_in_both_directions_triages_normally() -> None:
     service, _ = _service(client)
     result = service.triage(TriageInput("Acme (FICTIONAL)", "routine note"), actor="a")
     assert result.summary == "Acme (FICTIONAL): triaged low"
+    # The subject, the text, then the two joined as the generation step's prompt; then OUTPUT.
     assert [call[0] for call in client.calls] == [
+        "sanitize_user_prompt",
         "sanitize_user_prompt",
         "sanitize_user_prompt",
         "sanitize_model_response",

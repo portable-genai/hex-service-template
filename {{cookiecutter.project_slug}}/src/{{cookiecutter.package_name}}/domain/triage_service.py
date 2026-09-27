@@ -6,12 +6,16 @@ is written to the audit sink (R2/P-04), every result carries a citation, and a c
 result escalates softly to a human (P-06) rather than auto-executing.
 
 Rule R1: the guardrail screens BOTH directions of the one generation call this service makes,
-the narrated ``summary`` (a fork that replaces the deterministic string below with a real model
-call inherits this screening unchanged, because it wraps the STEP, not the string). INPUT: every
-caller-supplied field, the case subject as well as its text, is screened before it is scored or
-narrated at all, because the subject reaches the summary, the citation and the audit record
-exactly as the text does. OUTPUT: the narrated summary is screened before it is audited or
-returned. The text each screen hands back is the text used from then on, exactly as given.
+the narrated ``summary`` (a fork that replaces the deterministic body of :meth:`_narrate` with a
+real model call inherits this screening unchanged, because it wraps the STEP, not the string).
+INPUT, before anything is scored or narrated: every caller-supplied field on its own, the case
+subject as well as its text, because each reaches the summary, the citation and the audit record
+by itself; and then the PROMPT the generation step receives, the screened fields joined. The
+joined screen is not redundant: an injection split across the two fields ("... ignore all" in
+the subject, "previous instructions ..." in the text) passes each field's screen, and only a
+screen of the text the model actually reads sees it whole. OUTPUT: the narrated summary is
+screened before it is audited or returned. The text each screen hands back is the text used from
+then on, exactly as given.
 
 A blocked direction is audited ``Decision.BLOCKED`` and raises
 :class:`~.errors.GuardrailBlockedError`, never a partial result. A guardrail that cannot decide
@@ -37,6 +41,15 @@ _SEVERITY_KEYWORDS: tuple[tuple[Severity, frozenset[str]], ...] = (
     (Severity.HIGH, frozenset({"breach", "leak", "urgent", "weapon"})),
     (Severity.MEDIUM, frozenset({"complaint", "dispute", "delay"})),
 )
+
+
+def narration_prompt(subject: str, text: str) -> str:
+    """The prompt the generation step receives: both screened fields, joined as sent.
+
+    The subject line, a blank line, then the text, with nothing between them that a screen
+    could read as a break in a phrase that runs across the two.
+    """
+    return f"{subject}\n\n{text}"
 
 
 #: Span name for one triage. A module constant so the traced name is greppable and stable.
@@ -68,11 +81,16 @@ class TriageService:
         # nothing produced, and no subject, because the subject may be the very thing refused.
         subject = self._screen(case.subject, Direction.INPUT, actor=actor)
         text = self._screen(case.text, Direction.INPUT, actor=actor)
+        # The prompt a generation call receives is screened AS SENT, after its parts: a fork's
+        # model reads this string, so this string is what has to have passed the INPUT screen.
+        prompt = self._screen(
+            narration_prompt(subject, text), Direction.INPUT, actor=actor, subject=subject
+        )
 
         severity = self._severity(text)
         escalate = severity in (Severity.HIGH, Severity.CRITICAL)
         decision = Decision.ESCALATED if escalate else Decision.ALLOWED
-        narrated = f"{subject}: triaged {severity.value}"
+        narrated = self._narrate(prompt, subject, severity)
 
         # 2) Guardrail screen (OUTPUT) on the narrated summary, before it is audited or returned.
         # This is the step a real generation call replaces `narrated` above at: the screen stays
@@ -169,6 +187,16 @@ class TriageService:
                 timestamp=utcnow(),
             )
         )
+
+    @staticmethod
+    def _narrate(prompt: str, subject: str, severity: Severity) -> str:
+        """The generation step: the one place a fork puts its model call, on ``prompt``.
+
+        ``prompt`` is the screened, joined prompt, so a fork that sends it to a model sends
+        text the INPUT screen has seen whole. The deterministic stand-in narrates from the
+        subject and the band, and does not read the prompt.
+        """
+        return f"{subject}: triaged {severity.value}"
 
     @staticmethod
     def _severity(text: str) -> Severity:

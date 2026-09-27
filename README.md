@@ -86,10 +86,13 @@ input before it runs and output after, bound in all three adapter families (`loc
 `gcp` a regional Model Armor template with `infra/terraform/model_armor.tf` provisioning it,
 `onprem` a fail-fast placeholder), and `tests/unit/test_guardrail_screening.py` fails the build if
 a block is not audited before the raise reaches the caller. Both caller-supplied fields, the case
-subject and its text, are screened on input. The managed adapter fails closed: it allows only on
-an explicit `NO_MATCH_FOUND`, calls with a deadline, and lets an API error refuse the request;
+subject and its text, are screened on input, each alone and then joined as the prompt the
+generation step reads. The managed adapter fails closed: it allows only on an explicit
+`NO_MATCH_FOUND` from a screen whose `invocation_result` is `SUCCESS` (every filter ran), calls
+with a deadline, and lets an API error refuse the request;
 `google-cloud-modelarmor` is declared in the `[gcp]` extra and pinned in `requirements-gcp.lock`,
-and `tests/unit/test_model_armor_mapping.py` drives the mapping with the SDK's real enum types. A rendered repo never starts with no
+`tests/unit/test_model_armor_mapping.py` drives the mapping with the SDK's real enum types, and
+`tests/unit/test_model_armor_verdict_mirror.py` proves it SDK-free in every gate. A rendered repo never starts with no
 guardrail port to bind its first narration or classification call to.
 
 It is also DEMOABLE on render, not merely green. `scripts/` carries the whole demo surface (the

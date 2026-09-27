@@ -133,9 +133,13 @@ for a real repo.
   fleet's own dependency-rule check because it can only see a port that was ADDED and unwired,
   never one that was never added; `tests/unit/test_guardrail_screening.py` proves a block is
   audited `Decision.BLOCKED` before the raise reaches the caller. INPUT covers every
-  caller-supplied field (the subject as well as the text). The Model Armor adapter decides by
-  the filter state's enum NAME (`str()` of a proto-plus `IntEnum` is its number on 3.11+), and
-  fails closed on a match, an absent result, an API error and its deadline.
+  caller-supplied field (the subject as well as the text) and then the prompt the generation
+  step reads, the two joined, because an injection split across the fields passes each alone.
+  The Model Armor adapter decides by enum NAME (`str()` of a proto-plus `IntEnum` is its number
+  on 3.11+), allows only on `NO_MATCH_FOUND` with `invocation_result` `SUCCESS` (a skipped
+  filter reports no match), and fails closed on a match, an incomplete or absent result, an API
+  error and its deadline. The mapping is proved SDK-free against `IntEnum` mirrors in every
+  gate, and the mirrors are pinned to the real enums wherever the SDK is installed.
 - **NOTHING in a rendered repo may depend on the LENGTH of a rendered value, and a matrix proves
   it.** `make lint` is the first step of the rendered gate and of the shared hard-gate workflow,
   and it enforces 100 columns, so a line that fits at `example_agent` (13 characters) can be red
