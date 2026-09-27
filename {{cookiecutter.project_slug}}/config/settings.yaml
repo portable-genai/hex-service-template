@@ -58,6 +58,8 @@ review_url: ${HUMAN_REVIEW_URL:-}
 model_armor:
   template_id: {{ "${" + cookiecutter.env_prefix + "_MODEL_ARMOR_TEMPLATE:-" + cookiecutter.project_slug + "-guardrail}" }}
   host: {{ "${" + cookiecutter.env_prefix + "_MODEL_ARMOR_HOST:-modelarmor." + cookiecutter.region + ".rep.googleapis.com}" }}
+  # The deadline on every sanitize call. A timeout fails CLOSED (audited, then refused).
+  timeout_seconds: 10.0
 
 # The per-port adapter map: the ONLY place a binding lives, so switching the whole stack is a
 # configuration change rather than a code edit. `live` binds what `local` binds; a repo that adds

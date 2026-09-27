@@ -190,14 +190,23 @@ console says the case is not queued for review. Terraform states the switch as
 
 ### Guardrail (rule R1)
 
-`ports/guardrail.py` screens every generation call the domain narrates: the case text INPUT
-before it is scored or narrated, and the narrated summary OUTPUT before it is audited or
-returned (`domain/triage_service.py`). Under `gcp` it calls a regional Model Armor template
+`ports/guardrail.py` screens every generation call the domain narrates: the case subject and
+the case text INPUT before either is scored or narrated, and the narrated summary OUTPUT before
+it is audited or returned (`domain/triage_service.py`). Each screen's `sanitized_text` is the
+text used from then on, exactly as given. Under `gcp` it calls a regional Model Armor template
 (`config/settings.yaml` `model_armor.template_id`, on the regional host `model_armor.host`,
 never the global endpoint); `infra/terraform/model_armor.tf` creates that template, gated on
 `var.model_armor_full_capabilities` for the malicious-URI filter and multi-language detection,
-which not every region serves. A blocked direction is audited `Decision.BLOCKED` before the
-raise reaches the caller, never a partial triage; the API answers 400, the CLI prints to stderr
+which not every region serves: `asia-southeast1` refuses the malicious-URI filter, so a
+deployment there sets `model_armor_full_capabilities = false` (see `terraform.tfvars.example`).
+
+The managed guardrail fails CLOSED. It allows only on an explicit `NO_MATCH_FOUND`; a match, an
+absent or undecided result, and any API error all refuse, and every call carries a deadline
+(`model_armor.timeout_seconds`, 10 s by default) so a stalled backend refuses rather than hangs.
+A blocked direction is audited `Decision.BLOCKED` before the raise reaches the caller, never a
+partial triage; a guardrail that raised instead of deciding is audited `BLOCKED` with
+`guardrail unavailable (<error>)` and its own error then reaches the caller (a 500 from the
+API). An INPUT refusal records no severity, because nothing was scored; the API answers 400, the CLI prints to stderr
 and exits 1, and the agent tool returns `{"blocked": true, "reason": <str>}`.
 
 `{{ cookiecutter.env_prefix }}_GUARDRAIL` switches the guardrail, read in the same three states

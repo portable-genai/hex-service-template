@@ -69,10 +69,12 @@ report it against `hex-service-template`, because it is failing in every repo re
   `live` entry to a kit-backed `adapters/live/<port>.py` (CONTRIBUTING.md, the port walkthrough).
 - A deterministic domain service, redact-before-audit, citations on every result, and rule R8
   routing on every surface (API, CLI, agent tools).
-- Rule R1 guardrail screening on the domain's one generation-shaped step, INPUT before it runs
-  and OUTPUT after, bound in all three profiles (`local` heuristic, `gcp` Model Armor,
-  `onprem` placeholder); a block is audited `Decision.BLOCKED` before the raise reaches the
-  caller. When you add a real generation or narration port, wrap ITS call the same way, in the
+- Rule R1 guardrail screening on the domain's one generation-shaped step, INPUT (every
+  caller-supplied field) before it runs and OUTPUT after, bound in all three profiles (`local`
+  heuristic, `gcp` Model Armor, failing closed with a deadline and `google-cloud-modelarmor` in the
+  `[gcp]` extra, `onprem` placeholder); a block, or a guardrail that could not decide, is audited
+  `Decision.BLOCKED` before the raise reaches the caller. In a region that refuses the
+  malicious-URI filter (`asia-southeast1` does), set `model_armor_full_capabilities = false`. When you add a real generation or narration port, wrap ITS call the same way, in the
   domain, not in an adapter (CONTRIBUTING.md, the port walkthrough).
 - Identity as a server-verified `Principal`; the client-asserted actor is discarded everywhere.
 - A hash-chained WORM audit log with an EXTERNAL head anchor, and honest limits written down.

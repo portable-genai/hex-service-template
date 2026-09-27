@@ -21,8 +21,8 @@ startup and Terraform serving authorization until its live integration test exis
   jurisdiction pattern selection + order), `triage_service.py` (the deterministic engine).
 - `ports/` : `@runtime_checkable` Protocols (`AuditSinkPort`, `GuardrailPort`, `ReviewRouterPort`;
   identity uses the commons `IdentityPort`), re-exported once with the `PORT_PROTOCOLS` map.
-  `guardrail.py` screens every generation call INPUT before it is scored or narrated and OUTPUT
-  before it is audited or returned (rule R1); `identity.py` adds
+  `guardrail.py` screens every generation call INPUT (the subject and the text) before it is
+  scored or narrated and OUTPUT before it is audited or returned (rule R1); `identity.py` adds
   this service's own identity vocabulary: what an adapter DECLARES about the end-user
   authentication it provides (`VERIFIED` / `CLIENT_ASSERTED` / `UNIMPLEMENTED`), which is what the
   loopback exposure guard reads, plus the refusal type that carries a status and a reason when no

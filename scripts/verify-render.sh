@@ -296,6 +296,53 @@ verify_one_render() {
   assert_pytest_ran_and_passed "$matrix_status" "$matrix_check" \
     "the IAP negative matrix" "google-auth is installed" || return 1
 
+  # lint-gcp, on the render. `mypy src` above runs against the SDK-free dev install, where every
+  # lazily imported cloud SDK resolves to nothing, so it cannot see an adapter importing a
+  # client library the repo never declared. That is how the Model Armor guardrail merged green
+  # with google-cloud-modelarmor in no extra and no lock: it imported clean offline, and the
+  # first screen in a deployed image would have raised. This is the same check the fleet's
+  # `lint-gcp` job runs on every rendered repo (run-grc-ci): the gate's own mypy, pointed with
+  # --python-executable at a venv installed from the rendered RUNTIME lock, with a cold cache.
+  # The venv lives OUTSIDE the render, because a second venv inside a repo breaks the tests that
+  # walk its tree. The commons are re-installed from $COMMONS_ROOT over the lock's pins, so a
+  # COMMONS_GIT_CHECKOUT_ROOT run analyses the checkouts it says it installs.
+  echo "== lint-gcp: mypy against the rendered RUNTIME lock =="
+  local runtime="$WORK/$label-runtime"
+  uv venv --quiet --python 3.12 "$runtime"
+  uv pip install --quiet --python "$runtime/bin/python" -r requirements-gcp.lock
+  uv pip install --quiet --python "$runtime/bin/python" --no-deps \
+    -e "$COMMONS_ROOT/pii-kit" \
+    -e "$COMMONS_ROOT/hex-service-kit" \
+    -e "$COMMONS_ROOT/agent-eval-kit" \
+    -e "$COMMONS_ROOT/review-kit" \
+    -e .
+  # Stub-only pins are a type-checking concern and live in the dev lock; mypy resolves stubs
+  # from the interpreter it is pointed at, so the runtime venv needs them (as the runner does).
+  local stub_pins="$WORK/$label-stub-pins.txt"
+  grep -iE '^types-[A-Za-z0-9._-]+==' requirements-dev.lock > "$stub_pins" || true
+  if [ -s "$stub_pins" ]; then
+    uv pip install --quiet --python "$runtime/bin/python" -r "$stub_pins"
+  fi
+  rm -rf .mypy_cache
+  mypy --python-executable "$runtime/bin/python" src
+  rm -rf .mypy_cache
+
+  # The Model Armor mapping against the SDK's REAL enum and message types, run IN the runtime
+  # venv (pytest added after the type check, so it never joins the analysed set). The module
+  # skips where the SDK is absent, which is the SDK-free `make gate`, so here the flag turns a
+  # missing SDK into an error and the run is asserted to have PASSED, as for the IAP matrix.
+  echo "== the Model Armor mapping, real modelarmor_v1 types, no network =="
+  uv pip install --quiet --python "$runtime/bin/python" pytest
+  local armor_check armor_status
+  set +e
+  armor_check="$(env "${prefix}_REQUIRE_MODEL_ARMOR_SDK=1" \
+    "$runtime/bin/python" -m pytest --no-header -rs tests/unit/test_model_armor_mapping.py 2>&1)"
+  armor_status=$?
+  set -e
+  echo "$armor_check" | grep -E '[0-9]+ (passed|failed|skipped|error)|no tests ran' | sed 's/^/   /'
+  assert_pytest_ran_and_passed "$armor_status" "$armor_check" \
+    "the Model Armor mapping" "the runtime lock is installed" || return 1
+
   # The demo surface is OUTSIDE `make gate` in the rendered repo (the gate proves the service,
   # not the story), so verify it here explicitly. A rendered repo that is green but not demoable
   # has not reached parity: 34 repos start from this output.
