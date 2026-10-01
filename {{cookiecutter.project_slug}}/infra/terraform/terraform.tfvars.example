@@ -32,22 +32,25 @@ project_id = "fictional-{{ cookiecutter.package_name }}-project" # obviously fic
 
 # ----------------------------------------------------------------------------- #
 # POSTURE A: quick evaluation (project-scoped, no org roles, fully destroyable).
-# NOT a compliant production deployment. Uncomment the three lines together, say in a comment
-# why the lock is declined, and remove the worm_locked = true below: the bucket then keeps its
-# sink and its retention, stays destroyable, and may use a short retention_days because the
-# 180-day floor binds only when locked.
+# NOT a compliant production deployment. The perimeter and the org policies are already OFF
+# by default (slice 7 of the posture rule, 2026-10-01), so this posture is: remove the two
+# lines that state them below, uncomment the lock line here, say in a comment why the lock is
+# declined, and remove the worm_locked = true below. The bucket then keeps its sink and its
+# retention, stays destroyable, and may use a short retention_days because the 180-day floor
+# binds only when locked.
 # ----------------------------------------------------------------------------- #
-# enable_org_policies = false
-# enable_vpc_sc       = false
-# worm_locked         = false
+# worm_locked = false
 
 # ----------------------------------------------------------------------------- #
-# POSTURE B: sovereign, and the form shown active here. Org policies on (their
-# default), the WORM bucket LOCKED (stated below, because the lock has no default),
-# and a VPC-SC perimeter that starts in DRY RUN. Supply the access policy id, apply,
-# read the vpc_sc_denials alert for a full business cycle, add the operators, and
-# only then set vpc_sc_enforce = true.
+# POSTURE B: sovereign, and the form shown active here. Org policies on and a VPC-SC
+# perimeter that starts in DRY RUN, both stated because both default off, and the WORM
+# bucket LOCKED (stated below, because the lock has no default). Supply the access policy
+# id, apply, read the vpc_sc_denials alert for a full business cycle, add the operators,
+# and only then set vpc_sc_enforce = true. A shared project states the perimeter and the
+# org policies in exactly one stack.
 # ----------------------------------------------------------------------------- #
+enable_org_policies = true
+enable_vpc_sc       = true
 access_policy_id = "123456789012"
 vpc_sc_enforce   = false
 operator_members = [
