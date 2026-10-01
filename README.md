@@ -10,7 +10,6 @@ three adapter profiles, and its offline gate is green on render.
 cookiecutter.json                      # the template variables
 {{cookiecutter.project_slug}}/         # the generated repo (a complete hexagonal agent)
 BOOTSTRAP-CHECKLIST.md                 # the contract for whoever builds the next repo
-ui-base/                               # the older shared Next.js skeleton (superseded, see below)
 ```
 
 **Read [`BOOTSTRAP-CHECKLIST.md`](BOOTSTRAP-CHECKLIST.md) before rendering a repo.** It states
@@ -197,9 +196,6 @@ asserts an actor, the service credential never leaves the server), per-tenant CO
 allowlist that refuses a wildcard. It ships a committed `package-lock.json` and its own CI job
 (`tsc`, node tests, production build, `npm audit --audit-level=high`), all guarded so the
 workflow is correct whether or not the repo kept the UI.
-
-`ui-base/` is the older shared skeleton and is kept only as a reference for repos that predate
-this. New work goes in `{{cookiecutter.project_slug}}/ui/`, which is render-verified.
 
 ## Verifying the template
 
