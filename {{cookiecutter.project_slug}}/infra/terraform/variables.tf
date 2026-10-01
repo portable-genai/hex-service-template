@@ -180,9 +180,12 @@ variable "enable_org_policies" {
     roles/orgpolicy.policyAdmin on the project. Set false for a quick project-scoped
     evaluation deploy without that role; the per-resource region pins still apply, but the
     defence-in-depth layer is skipped, which is NOT compliant for production.
+
+    Off by default since 2026-10-01 (slice 7 of the posture rule: a control that is not
+    irreversible defaults off in code); terraform.tfvars.example states the production form.
   EOT
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "allowed_policy_member_domains" {
@@ -213,9 +216,9 @@ variable "access_policy_id" {
 }
 
 variable "enable_vpc_sc" {
-  description = "Create the VPC Service Controls perimeter around the AI and control-plane APIs (P-01, P-03)."
+  description = "Create the VPC Service Controls perimeter around the AI and control-plane APIs (P-01, P-03). Off by default since 2026-10-01 (slice 7 of the posture rule: a control that is not irreversible defaults off in code); terraform.tfvars.example states the production form."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "vpc_sc_enforce" {
