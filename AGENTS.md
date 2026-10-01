@@ -44,8 +44,6 @@ Siblings: `pii-kit`, `hex-service-kit`, `agent-eval-kit`.
   render can break neither the JSON nor the HCL. `naming.tf` derives every name from them. A
   `*.tf` glob cannot match `.tf.json`, which is what keeps the split clean;
   `terraform.tfvars.example` renders too, and is the only other file there that may carry Jinja.
-- `ui-base/` is the older shared skeleton, kept only as a reference for repos that predate the
-  rendered `ui/`. New work goes in `{{cookiecutter.project_slug}}/ui/`, which IS render-verified.
 - `BOOTSTRAP-CHECKLIST.md` is the contract the repo-building agents follow: what a rendered repo
   already has, what must be done first, and what remains genuinely per-repo. Update it in the
   same change that closes or opens a gap, or the 31 repos work from a stale contract.
